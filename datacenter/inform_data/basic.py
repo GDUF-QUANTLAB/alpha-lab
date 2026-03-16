@@ -5,9 +5,9 @@ import polars as pl
 import blazestore as bs
 from tool_box import xcals
 
-from .table import DataType, Instrument, get_data
+from ..base import get_data
+from ..enums import DataType, Instrument
 
-# Common filter for A-shares
 ASHARE_PREFIXES = ["6", "3", "0"]
 
 
@@ -20,16 +20,14 @@ def codes(date: str, instrument: Instrument = Instrument.STOCK) -> pl.LazyFrame:
         instrument: Financial instrument type. Defaults to Instrument.STOCK.
 
     Returns:
-        pl.LazyFrame: A LazyFrame containing all codes for the specified instrument on the given date.
+        pl.LazyFrame: A LazyFrame containing all codes for specified instrument on given date.
     """
-    local_tb_name = get_data(instrument, datatype=DataType.SECUMAIN).local
+    d = get_data(instrument, DataType.SECUMAIN)
     return (
-        bs.sql(f"select SecuCode as asset, * from {local_tb_name}")
+        bs.sql(f"select SecuCode as asset, * from {d.local}")
         .filter(pl.col("ListedDate").is_not_null())
         .with_columns(pl.col("ListedDate").str.to_date())
-        .filter(
-            pl.col("ListedDate") <= pl.lit(date).str.to_date(),  # Date safety
-        )
+        .filter(pl.col("ListedDate") <= pl.lit(date).str.to_date())
         .sort("ListedDate")
         .group_by("asset")
         .agg(
@@ -72,7 +70,7 @@ def asset(date: str) -> pl.LazyFrame:
             .dt.total_days()
             .cast(int)
             >= 90,
-            pl.col("ListedState").cast(int) == 1,  # Normal listing status
+            pl.col("ListedState").cast(int) == 1,
         )
         .select("asset")
         .collect()
@@ -99,9 +97,9 @@ def industry(date: str, instrument: Instrument = Instrument.STOCK) -> pl.LazyFra
     Returns:
         pl.LazyFrame: A LazyFrame containing industry classification info.
     """
-    local_tb_name = get_data(instrument, datatype=DataType.INDUSTRY).local
+    d = get_data(instrument, DataType.INDUSTRY)
     return (
-        bs.sql(f"select SecuCode as asset, * from {local_tb_name}")
+        bs.sql(f"select SecuCode as asset, * from {d.local}")
         .with_columns(pl.col("InfoPublDate").str.to_date())
         .filter(pl.col("InfoPublDate") < xcals.to_date(date))
         .group_by("asset")
@@ -115,10 +113,7 @@ def industry(date: str, instrument: Instrument = Instrument.STOCK) -> pl.LazyFra
     )
 
 
-def shares(
-    date: str,
-    instrument: Instrument = Instrument.STOCK,
-) -> pl.LazyFrame:
+def shares(date: str, instrument: Instrument = Instrument.STOCK) -> pl.LazyFrame:
     """
     Reads floating and total shares info for stocks/indices/futures/convertible bonds on a specific date.
 
@@ -129,9 +124,9 @@ def shares(
     Returns:
         pl.LazyFrame: A LazyFrame containing shares information.
     """
-    local_tb_name = get_data(instrument, datatype=DataType.SHARES).local
+    d = get_data(instrument, DataType.SHARES)
     data = (
-        bs.sql(f"select SecuCode as asset, * from {local_tb_name}")
+        bs.sql(f"select SecuCode as asset, * from {d.local}")
         .with_columns(
             pl.col("EndDate").str.to_date(),
             pl.col("InfoPublDate").str.to_date(),
@@ -152,10 +147,7 @@ def shares(
     )
 
 
-def capital(
-    date: str,
-    instrument: Instrument = Instrument.STOCK,
-) -> pl.LazyFrame:
+def capital(date: str, instrument: Instrument = Instrument.STOCK) -> pl.LazyFrame:
     """
     Reads capital structure info for stocks/indices/futures/convertible bonds on a specific date.
 
@@ -166,9 +158,9 @@ def capital(
     Returns:
         pl.LazyFrame: A LazyFrame containing capital structure information.
     """
-    local_tb_name = get_data(instrument, datatype=DataType.CAPITAL).local
+    d = get_data(instrument, DataType.CAPITAL)
     return (
-        bs.sql(f"select SecuCode as asset, * from {local_tb_name}")
+        bs.sql(f"select SecuCode as asset, * from {d.local}")
         .with_columns(
             pl.col("InfoPublDate").str.to_date(),
             pl.col("ChangeDate").str.to_date(),
@@ -197,11 +189,11 @@ def special_trades(
     Returns:
         pl.LazyFrame: A LazyFrame containing special trade information.
     """
-    local_tb_name = get_data(instrument, datatype=DataType.ST).local
+    d = get_data(instrument, DataType.ST)
 
     c = codes(date=date, instrument=instrument)
-    d = (
-        bs.sql(f"select * from {local_tb_name}")
+    df = (
+        bs.sql(f"select * from {d.local}")
         .with_columns(
             pl.col("InfoPublDate").str.to_date(),
             pl.col("SpecialTradeDate").str.to_date(),
@@ -214,7 +206,7 @@ def special_trades(
 
     return (
         c.select("asset", "InnerCode", "SecuAbbr")
-        .join(d, on="InnerCode", how="left")
+        .join(df, on="InnerCode", how="left")
         .filter(pl.col("asset").str.slice(0, 1).is_in(ASHARE_PREFIXES))
         .sort("asset")
         .with_columns(
@@ -227,8 +219,7 @@ def special_trades(
 
 
 def adj_factors(
-    date: str,
-    instrument: Instrument = Instrument.STOCK,
+    date: str, instrument: Instrument = Instrument.STOCK
 ) -> pl.LazyFrame:
     """
     Reads adjustment factor info for stocks/indices/futures/convertible bonds on a specific date.
@@ -245,12 +236,8 @@ def adj_factors(
 
     return code.join(
         bs.sql(f"select * from {d.local}")
-        .filter(
-            pl.col("ExDiviDate").str.to_date() <= xcals.to_date(date),
-        )
-        .group_by(
-            "InnerCode",
-        )
+        .filter(pl.col("ExDiviDate").str.to_date() <= xcals.to_date(date))
+        .group_by("InnerCode")
         .agg(pl.col("AdjustingFactor").sort_by("ExDiviDate").last())
         .sort("InnerCode"),
         on="InnerCode",
@@ -258,8 +245,7 @@ def adj_factors(
 
 
 def mainshlistnew(
-    date: str,
-    instrument: Instrument = Instrument.STOCK,
+    date: str, instrument: Instrument = Instrument.STOCK
 ) -> pl.LazyFrame:
     """
     Reads listing info for stocks/indices/futures/convertible bonds on a specific date.
@@ -271,16 +257,14 @@ def mainshlistnew(
     Returns:
         pl.LazyFrame: A LazyFrame containing listing information.
     """
-    local_tb_name = get_data(instrument, datatype=DataType.MAINSHLIST).local
+    d = get_data(instrument, DataType.MAINSHLIST)
     return (
-        bs.sql(f"select SecuCode as asset, * from {local_tb_name}")
+        bs.sql(f"select SecuCode as asset, * from {d.local}")
         .with_columns(
             pl.col("InfoPublDate").str.to_date(),
             pl.col("EndDate").str.to_date(),
         )
-        .filter(
-            pl.col("InfoPublDate") < xcals.to_date(date),
-        )
+        .filter(pl.col("InfoPublDate") < xcals.to_date(date))
         .filter(pl.col("asset").str.slice(0, 1).is_in(ASHARE_PREFIXES))
         .filter(pl.col("InfoPublDate") == pl.col("InfoPublDate").max().over("asset"))
         .sort("asset")
@@ -303,10 +287,10 @@ def financial_index(
     Returns:
         pl.LazyFrame: A LazyFrame containing financial index information.
     """
-    local_tb_name = get_data(instrument, datatype=DataType.FINANCIAL_INDEX).local
+    d = get_data(instrument, DataType.FINANCIAL_INDEX)
 
     return (
-        bs.sql(f"select SecuCode as asset, * from {local_tb_name}")
+        bs.sql(f"select SecuCode as asset, * from {d.local}")
         .with_columns(
             pl.col("InfoPublDate").str.to_date(),
             pl.col("EndDate").str.to_date(),

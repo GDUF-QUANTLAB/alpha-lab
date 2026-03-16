@@ -9,7 +9,6 @@ from .basic import (
     shares,
     special_trades,
 )
-from .table import get_data
 
 __all__ = [
     "codes",
@@ -18,7 +17,6 @@ __all__ = [
     "special_trades",
     "adj_factors",
     "capital",
-    "get_data",
     "mainshlistnew",
     "financial_index",
     "asset",
