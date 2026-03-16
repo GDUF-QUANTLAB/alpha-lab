@@ -1,3 +1,9 @@
+"""
+ClickHouse客户端
+
+提供ClickHouse数据库连接和查询功能，支持集群负载均衡和多线程操作。
+"""
+
 from __future__ import annotations
 
 from random import randint
@@ -15,18 +21,23 @@ _conns = ThreadLocalVariable(default_factory=lambda: [])
 
 def connect(urls: list[str], user: str, password: str) -> Client:
     """
-    连接 ClickHouse 服务器，支持集群负载均衡 (随机选择)。
+    连接 ClickHouse 服务器，支持集群负载均衡（随机选择）。
 
     Args:
-        urls: ClickHouse 地址列表，格式如 ["host1:port1", "host2:port2", ...].
-        user: 用户名.
-        password: 密码.
+        urls: ClickHouse 地址列表，格式如 ["host1:port1", "host2:port2", ...]
+        user: 用户名
+        password: 密码
 
     Returns:
-        Client: 有效的 clickhouse_driver.Client 实例.
+        Client: 有效的 clickhouse_driver.Client 实例
 
     Raises:
-        ValueError: 如果 urls 为空或格式错误.
+        ValueError: 如果 urls 为空或格式错误
+
+    Examples:
+        >>> conn = connect(["localhost:8123", "localhost:8124"], "default", "")
+        >>> conn.execute("SELECT 1")
+        [(1,)]
     """
     if not urls:
         raise ValueError("urls 参数不能为空")
@@ -55,11 +66,18 @@ def to_pandas(sql: str, conn: Client | None = None) -> pd.DataFrame:
     执行 SQL 并返回 pandas.DataFrame。
 
     Args:
-        sql: SQL 查询语句.
-        conn: 可选的 ClickHouse 客户端实例。如果为 None，使用当前线程的默认连接.
+        sql: SQL 查询语句
+        conn: 可选的 ClickHouse 客户端实例。如果为 None，使用当前线程的默认连接
 
     Returns:
-        pd.DataFrame: 查询结果.
+        pd.DataFrame: 查询结果
+
+    Examples:
+        >>> conn = connect(["localhost:8123"], "default", "")
+        >>> df = to_pandas("SELECT 1 as num", conn)
+        >>> df
+           num
+        0    1
     """
     conn = conn if conn is not None else _get_default_conn()
     return conn.query_dataframe(sql)
@@ -70,11 +88,24 @@ def to_polars(sql: str, conn: Client | None = None) -> pl.DataFrame:
     执行 SQL 并返回 polars.DataFrame。
 
     Args:
-        sql: SQL 查询语句.
-        conn: 可选的 ClickHouse 客户端实例。如果为 None，使用当前线程的默认连接.
+        sql: SQL 查询语句
+        conn: 可选的 ClickHouse 客户端实例。如果为 None，使用当前线程的默认连接
 
     Returns:
-        pl.DataFrame: 查询结果.
+        pl.DataFrame: 查询结果
+
+    Examples:
+        >>> conn = connect(["localhost:8123"], "default", "")
+        >>> df = to_polars("SELECT 1 as num", conn)
+        >>> df
+        shape: (1, 1)
+        ┌─────┐
+        │ num │
+        │ --- │
+        │ i32 │
+        ╞═════╡
+        │   1 │
+        └─────┘
     """
     conn = conn if conn is not None else _get_default_conn()
     data, columns = conn.execute(sql, columnar=True, with_column_types=True)
@@ -104,6 +135,12 @@ def to_polars(sql: str, conn: Client | None = None) -> pl.DataFrame:
 def _get_default_conn() -> Client:
     """
     返回当前线程的最后一个连接。
+
+    Returns:
+        Client: 当前线程的最后一个 ClickHouse 连接
+
+    Raises:
+        RuntimeError: 如果当前线程没有活动的连接
     """
     conns = _conns.get()
     if not conns:
@@ -114,8 +151,16 @@ def _get_default_conn() -> Client:
 def close_all() -> int:
     """
     关闭当前线程的所有连接。
+
     Returns:
-        int: 关闭的连接数量.
+        int: 关闭的连接数量
+
+    Examples:
+        >>> connect(["localhost:8123"], "default", "")
+        >>> connect(["localhost:8124"], "default", "")
+        >>> count = close_all()
+        >>> count
+        2
     """
     conns = _conns.get()
     count = len(conns)

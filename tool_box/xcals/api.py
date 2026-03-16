@@ -1,3 +1,9 @@
+"""
+交易日历API
+
+提供交易日历相关的函数接口，包括交易日查询、日期偏移、报告期计算等功能。
+"""
+
 from __future__ import annotations
 
 import datetime
@@ -72,6 +78,13 @@ def get_tradingdays(
         beg_date: 开始日期 (YYYY-MM-DD)，默认为 None (最早)
         end_date: 结束日期 (YYYY-MM-DD)，默认为 None (最晚)
         to_str: 是否返回字符串列表。True 返回 List[str], False 返回 List[datetime.date]
+
+    Returns:
+        List[str] | List[datetime.date]: 交易日列表
+
+    Examples:
+        >>> get_tradingdays("2023-01-01", "2023-01-31")
+        ['2023-01-03', '2023-01-04', ...]
     """
     df = CALENDAR.get_tradingdays(beg_date, end_date)
     if to_str:
@@ -96,7 +109,13 @@ def today(as_obj: bool = False) -> str | datetime.date:
         as_obj: 是否返回 datetime.date 对象。默认为 False (返回字符串)。
 
     Returns:
-        str | datetime.date: 当前日期。
+        str | datetime.date: 当前日期，格式为 "YYYY-MM-DD" 或 datetime.date 对象
+
+    Examples:
+        >>> today()
+        '2023-12-01'
+        >>> today(as_obj=True)
+        datetime.date(2023, 12, 1)
     """
     now_dt = datetime.datetime.now()
     return now_dt.date() if as_obj else now_dt.strftime("%Y-%m-%d")
@@ -134,33 +153,86 @@ def shift_tradeday(date: str, num: int = 1) -> str:
              如果 date 不是交易日：
              - num > 0: 从 date 之后的第一个交易日开始计算偏移
              - num < 0: 从 date 之前的第一个交易日开始计算偏移
+
+    Returns:
+        str: 偏移后的交易日，格式为 "YYYY-MM-DD"
+
+    Raises:
+        IndexError: 如果偏移后的日期超出范围
+
+    Examples:
+        >>> shift_tradeday("2023-01-03", 1)
+        '2023-01-04'
+        >>> shift_tradeday("2023-01-03", -1)
+        '2023-01-02'
     """
     return CALENDAR.shift_tradeday(date, num)
 
 
 def is_tradeday(date: str) -> bool:
-    """判断是否为交易日"""
+    """
+    判断是否为交易日。
+
+    Args:
+        date: 日期字符串，格式为 "YYYY-MM-DD"
+
+    Returns:
+        bool: 如果是交易日返回 True，否则返回 False
+
+    Examples:
+        >>> is_tradeday("2023-01-03")
+        True
+        >>> is_tradeday("2023-01-01")
+        False
+    """
     return CALENDAR.is_tradeday(date)
 
 
-def update():
-    """更新交易日历数据"""
+def update() -> None:
+    """
+    更新交易日历数据。
+
+    从远程URL下载最新的交易日历文件并更新本地缓存。
+
+    Raises:
+        Exception: 如果下载失败
+
+    Examples:
+        >>> update()
+        Downloading calendar from https://... to ~/.xcals...
+        Download completed.
+    """
     CALENDAR.update()
 
 
 def get_previous_report_dates(
-    date: str | datetime.date, n: int = 1, season: int = None, to_str: bool = True
+    date: str | datetime.date,
+    n: int = 1,
+    season: int | None = None,
+    to_str: bool = True,
 ) -> list[str] | list[datetime.date]:
     """
     获取指定日期之前的 n 个报告期。
 
     Args:
-        date: 当前日期
-        n: 报告期个数
+        date: 当前日期，可以是字符串 (YYYY-MM-DD) 或 datetime.date 对象
+        n: 报告期个数，默认为 1
         season: 季度 (1, 2, 3, 4) 或 None。
                None 表示连续报告期。
                1-4 表示只获取对应季度的报告期 (如 season=1 只获取 3月31日)。
-        to_str: 是否返回字符串列表
+        to_str: 是否返回字符串列表，默认为 True
+
+    Returns:
+        List[str] | List[datetime.date]: 报告期列表，按时间顺序排列
+
+    Raises:
+        ValueError: 如果 n 超过合理范围或 season 参数无效
+
+    Examples:
+        >>> get_previous_report_dates("2023-12-31", 2)
+        ['2023-09-30', '2023-06-30']
+        >>> get_previous_report_dates("2023-12-31", 2, season=1)
+        ['2023-03-31', '2022-03-31']
     """
     if isinstance(date, str):
         d = datetime.datetime.strptime(date, "%Y-%m-%d").date()
@@ -197,6 +269,8 @@ def get_previous_report_dates(
 
         # Check season
         if season is not None:
+            if season not in [1, 2, 3, 4]:
+                raise ValueError(f"Invalid season: {season}. Must be 1, 2, 3, or 4.")
             target_month = season * 3
             if current.month == target_month:
                 result.append(current)
@@ -224,7 +298,24 @@ def get_previous_report_dates(
 
 
 def get_last_tradingday(date: str) -> str:
-    """获取指定日期之前(含)最近的一个交易日"""
+    """
+    获取指定日期之前(含)最近的一个交易日。
+
+    Args:
+        date: 基准日期，格式为 "YYYY-MM-DD"
+
+    Returns:
+        str: 最近的一个交易日，格式为 "YYYY-MM-DD"
+
+    Raises:
+        ValueError: 如果没有找到交易日
+
+    Examples:
+        >>> get_last_tradingday("2023-01-01")
+        '2022-12-30'
+        >>> get_last_tradingday("2023-01-03")
+        '2023-01-03'
+    """
     return CALENDAR.get_recent_tradeday(date)
 
 

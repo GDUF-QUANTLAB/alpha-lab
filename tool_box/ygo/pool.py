@@ -1,3 +1,9 @@
+"""
+并发任务调度器
+
+提供基于joblib的并行任务调度功能，支持进度条显示和任务分组。
+"""
+
 from __future__ import annotations
 
 import functools
@@ -15,14 +21,24 @@ T = TypeVar("T")
 
 def run_job(job: DelayedFunction, task_name: str) -> tuple[str, Any]:
     """
-    Executes a single delayed job.
+    执行单个延迟任务。
 
     Args:
-        job: The delayed function to execute.
-        task_name: The name of the task group.
+        job: 要执行的延迟函数
+        task_name: 任务组名称
 
     Returns:
-        tuple[str, Any]: A tuple containing the task name and the result of the job.
+        tuple[str, Any]: 包含任务名称和结果的元组
+
+    Raises:
+        Exception: 如果任务执行失败
+
+    Examples:
+        >>> from tool_box.ygo import delay
+        >>> job = delay(lambda x: x * 2)(x=5)
+        >>> result = run_job(job, "test_task")
+        >>> result
+        ('test_task', 10)
     """
     try:
         return task_name, job()
@@ -38,18 +54,25 @@ def multi_task_name(
     show_progress: bool,
 ) -> list[Any] | dict[str, list[Any]]:
     """
-    Executes multiple tasks in parallel.
+    并行执行多个任务。
 
     Args:
-        job_map: A dictionary mapping task names to lists of delayed functions.
-        job_num: The number of parallel jobs to run.
-        backend: The backend to use for parallel execution (e.g., 'threading', 'multiprocessing').
-        show_progress: Whether to show a progress bar.
+        job_map: 任务名称到延迟函数列表的映射字典
+        job_num: 并行任务数量
+        backend: 并行执行后端（如 'threading', 'multiprocessing'）
+        show_progress: 是否显示进度条
 
     Returns:
-        list[Any] | dict[str, list[Any]]: The results of the executed tasks.
-        If only one task group exists, returns a list of results.
-        Otherwise, returns a dictionary mapping task names to lists of results.
+        Union[List[Any], Dict[str, List[Any]]]: 执行任务的结果
+        如果只有一个任务组，返回结果列表
+        否则返回任务名称到结果列表的映射字典
+
+    Examples:
+        >>> from tool_box.ygo import delay
+        >>> jobs = {"task1": [delay(lambda: 1)(), "task2": [delay(lambda: 2)()]}
+        >>> results = multi_task_name(jobs, 2, "threading", False)
+        >>> results
+        {'task1': [1], 'task2': [2]}
     """
     _parallel = Parallel(
         n_jobs=job_num,
@@ -81,6 +104,7 @@ def multi_task_name(
         for name, jobs in job_map.items():
             for job in jobs:
                 job_lst.append(delayed(run_job)(job=job, task_name=name))
+
         results: dict[str, list[Any]] = {}
         for name, result in _parallel(job_lst):
             if results.get(name) is None:
@@ -94,6 +118,27 @@ def multi_task_name(
 
 
 class Pool:
+    """
+    并发任务池
+
+    用于管理和执行并行任务的池类，支持任务分组、进度显示等功能。
+
+    Attributes:
+        _n_jobs: 并行任务数量
+        backend: 并行执行后端
+        show_progress: 是否显示进度条
+        _job_map: 任务收集字典
+
+    Examples:
+        >>> pool = Pool(n_jobs=4, show_progress=True)
+        >>> @pool.submit(job_name="data_processing")
+        >>> def process_data(date: str):
+        ...     return f"Processed {date}"
+        >>> process_data(date="2023-01-01")
+        >>> pool.do()
+        ['Processed 2023-01-01']
+    """
+
     def __init__(
         self,
         n_jobs: int = 5,
@@ -101,37 +146,45 @@ class Pool:
         backend: str = "threading",
     ):
         """
-        Initializes the Pool.
+        初始化并发任务池。
 
         Args:
-            n_jobs: Number of parallel jobs. Defaults to 5.
-            show_progress: Whether to show progress bar. Defaults to True.
-            backend: Parallel backend ('threading' or 'multiprocessing'). Defaults to "threading".
+            n_jobs: 并行任务数量，默认为 5
+            show_progress: 是否显示进度条，默认为 True
+            backend: 并行执行后端 ('threading' 或 'multiprocessing')，默认为 "threading"
         """
         self._n_jobs = n_jobs
         self.backend = backend
         self.show_progress = show_progress
 
-        self._job_map: dict[str, list[DelayedFunction]] = {}  # Task collection
+        self._job_map: dict[str, list[DelayedFunction]] = {}
 
     def submit(
         self, fn: Callable[..., T], job_name: str | None = None
     ) -> Callable[..., DelayedFunction]:
         """
-        Submits a task to the pool.
+        提交任务到池中。
 
         Args:
-            fn: The function to execute.
-            job_name: Optional name for the task group. Defaults to "Null-JOB".
+            fn: 要执行的函数
+            job_name: 任务组名称，默认为 "Null-JOB"
 
         Returns:
-            Callable: A wrapper function that, when called, adds the job to the pool.
+            Callable: 包装函数，调用时将任务添加到池中
+
+        Examples:
+            >>> pool = Pool()
+            >>> @pool.submit(job_name="test")
+            >>> def add(a: int, b: int) -> int:
+            ...     return a + b
+            >>> add(a=1, b=2)
+            <DelayedFunction object>
         """
         job_name = "Null-JOB" if job_name is None else job_name
 
         @functools.wraps(fn)
         def collect(**kwargs) -> DelayedFunction:
-            """Collects the task."""
+            """收集任务"""
             job = delay(fn)(**kwargs)
 
             if self._job_map.get(job_name) is None:
@@ -145,10 +198,25 @@ class Pool:
 
     def do(self) -> list[Any] | dict[str, list[Any]]:
         """
-        Executes all submitted tasks.
+        执行所有提交的任务。
 
         Returns:
-            list[Any] | dict[str, list[Any]]: The results of the tasks.
+            list[Any] | dict[str, list[Any]]: 任务执行的结果
+            如果只有一个任务组，返回结果列表
+            否则返回任务名称到结果列表的映射字典
+
+        Examples:
+            >>> pool = Pool(n_jobs=2)
+            >>> @pool.submit(job_name="task1")
+            >>> def task1_func():
+            ...     return 1
+            >>> @pool.submit(job_name="task2")
+            >>> def task2_func():
+            ...     return 2
+            >>> task1_func()
+            >>> task2_func()
+            >>> pool.do()
+            {'task1': [1], 'task2': [2]}
         """
         job_num = min(sum([len(i) for i in self._job_map.values()]), self._n_jobs)
         if job_num == 0:
