@@ -218,9 +218,7 @@ def special_trades(
     )
 
 
-def adj_factors(
-    date: str, instrument: Instrument = Instrument.STOCK
-) -> pl.LazyFrame:
+def adj_factors(date: str, instrument: Instrument = Instrument.STOCK) -> pl.LazyFrame:
     """
     Reads adjustment factor info for stocks/indices/futures/convertible bonds on a specific date.
 
@@ -244,9 +242,7 @@ def adj_factors(
     ).select("asset", pl.col("AdjustingFactor").alias("value"))
 
 
-def mainshlistnew(
-    date: str, instrument: Instrument = Instrument.STOCK
-) -> pl.LazyFrame:
+def mainshlistnew(date: str, instrument: Instrument = Instrument.STOCK) -> pl.LazyFrame:
     """
     Reads listing info for stocks/indices/futures/convertible bonds on a specific date.
 
