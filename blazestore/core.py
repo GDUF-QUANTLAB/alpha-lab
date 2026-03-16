@@ -1,31 +1,74 @@
+"""
+BlazeStore核心模块
+
+提供本地Parquet文件存储、SQL查询功能。
+"""
+
 from __future__ import annotations
 
 import re
-import urllib
 from pathlib import Path
 
 import polars as pl
 
-from tool_box import clickhouse_df
-
 from .config import get_settings
+from .local import LocalStore
 from .parse import extract_table_names_from_sql
 
 DB_PATH = get_settings().get("paths.store")
+_local_store = LocalStore()
 
 
-# ======================== Local Database (catdb) ========================
-def tb_path(tb_name: str) -> Path:
+def set_local_store(store: LocalStore) -> None:
     """
-    Returns the complete local path for a given table name.
+    设置本地存储实例。
 
     Args:
-        tb_name: Table name, path style: a/b/c
+        store: LocalStore实例
+
+    Examples:
+        >>> from blazestore.local import LocalStore
+        >>> store = LocalStore("/tmp/custom_path")
+        >>> set_local_store(store)
+    """
+    global _local_store
+    _local_store = store
+
+
+def get_local_store() -> LocalStore:
+    """
+    获取当前本地存储实例。
 
     Returns:
-        pathlib.Path: Complete local absolute path $DB_PATH/a/b/c
+        LocalStore: 当前LocalStore实例
+
+    Examples:
+        >>> store = get_local_store()
+        >>> store.list_tables()
     """
-    return Path(DB_PATH, tb_name)
+    return _local_store
+
+
+# ======================== Local Database ========================
+
+
+def tb_path(tb_name: str) -> Path:
+    """
+    获取表名的完整本地路径。
+
+    Args:
+        tb_name: 表名，路径风格：a/b/c
+
+    Returns:
+        Path: 完整的本地绝对路径 $DB_PATH/a/b/c
+
+    Examples:
+        >>> tb_path("my_table")
+        Path('/home/user/BlazeStore/my_table')
+        >>> tb_path("data/stocks")
+        Path('/home/user/BlazeStore/data/stocks')
+    """
+    return _local_store.tb_path(tb_name)
 
 
 def put(
@@ -33,69 +76,108 @@ def put(
     tb_name: str,
     partitions: list[str] | None = None,
     abs_path: bool = False,
-):
+) -> None:
     """
-    Writes a DataFrame to the specified table directory, supporting partitioned storage.
+    将DataFrame写入指定的表目录，支持分区存储。
 
-    This function writes the given DataFrame (df) to the local file system based on the
-    provided table name (tb_name). If partitions are specified, data will be split and
-    stored according to these partition columns. Additionally, the abs_path parameter
-    can specify whether tb_name should be treated as an absolute path. If the directory
-    does not exist, it will be created automatically.
+    该函数将给定的DataFrame（df）写入本地文件系统，基于提供的表名（tb_name）。
+    如果指定了分区，数据将根据这些分区列进行分割和存储。
+    此外，abs_path参数可以指定tb_name是否应被视为绝对路径。
+    如果目录不存在，将自动创建。
 
     Args:
-        df: The DataFrame to write.
-        tb_name: The name of the table, used to determine the storage directory.
-        partitions: List of column names to use for partitioning. If not provided,
-            no partitioning is performed.
-        abs_path: Whether tb_name should be treated as an absolute path. Defaults to False.
+        df: 要写入的DataFrame
+        tb_name: 表名，用于确定存储目录
+        partitions: 用于分区的列名列表。如果未提供，则不执行分区
+        abs_path: tb_name是否应被视为绝对路径。默认为False
+
+    Raises:
+        FileOperationError: 如果目录创建失败
+        FileOperationError: 如果数据写入失败
+
+    Examples:
+        >>> import polars as pl
+        >>> df = pl.DataFrame({"a": [1, 2, 3], "b": ["x", "y", "z"]})
+        >>> put(df, "my_table")
+        >>> put(df, "partitioned_table", partitions=["b"])
+        >>> put(df, "/absolute/path/to/table", abs_path=True)
     """
-    if not abs_path:
-        tbpath = tb_path(tb_name)
+    if abs_path:
+        store = LocalStore(Path(tb_name).parent)
+        store.put(df, Path(tb_name).name, partitions=partitions)
     else:
-        tbpath = Path(tb_name)
-    if not tbpath.exists():
-        tbpath.mkdir(parents=True, exist_ok=True)
-    if partitions is not None:
-        df.write_parquet(tbpath, partition_by=partitions)
-    else:
-        df.write_parquet(tbpath / "data.parquet")
+        _local_store.put(df, tb_name, partitions=partitions)
 
 
 def has(tb_name: str) -> bool:
     """
-    Determines if the given table name exists.
+    判断给定的表名是否存在。
 
     Args:
-        tb_name: The table name to check.
+        tb_name: 要检查的表名
 
     Returns:
-        bool: True if the table exists, False otherwise.
+        bool: 如果表存在返回True，否则返回False
+
+    Examples:
+        >>> has("my_table")
+        True
+        >>> has("non_existent_table")
+        False
     """
-    return tb_path(tb_name).exists()
+    return _local_store.has(tb_name)
 
 
 def sql(
     query: str, abs_path: bool = False, lazy: bool = True
 ) -> pl.DataFrame | pl.LazyFrame:
     """
-    Executes a SQL query against local Parquet files.
+    对本地Parquet文件执行SQL查询。
+
+    该函数将SQL查询中的表名转换为Parquet文件路径，并使用Polars SQL引擎执行查询。
 
     Args:
-        query: The SQL query string.
-        abs_path: Whether to use absolute paths for table paths. Defaults to False.
-        lazy: Whether to return a LazyFrame (True) or DataFrame (False). Defaults to True.
+        query: SQL查询字符串
+        abs_path: 是否使用绝对路径作为表路径。默认为False
+        lazy: 是否返回LazyFrame（True）或DataFrame（False）。默认为True
 
     Returns:
-        pl.DataFrame | pl.LazyFrame: The query result.
+        pl.DataFrame | pl.LazyFrame: 查询结果
+
+    Raises:
+        QueryError: 如果SQL执行失败
+        PathError: 如果表文件不存在
+
+    Examples:
+        >>> sql("SELECT * FROM my_table WHERE a > 1")
+        shape: (2, 2)
+        ┌─────┬─────┐
+        │ a   ┆ b   │
+        │ --- ┆ --- │
+        │ i64 ┆ str │
+        ╞═════╪═════╡
+        │ 2   ┆ y   │
+        │ 3   ┆ z   │
+        └─────┴─────┘
+        >>> sql("SELECT * FROM my_table", lazy=False)
+        shape: (3, 2)
+        ┌─────┬─────┐
+        │ a   ┆ b   │
+        │ --- ┆ --- │
+        │ i64 ┆ str │
+        ╞═════╪═════╡
+        │ 1   ┆ x   │
+        │ 2   ┆ y   │
+        │ 3   ┆ z   │
+        └─────┴─────┘
     """
     tbs = extract_table_names_from_sql(query)
     convertor = {}
     for tb in tbs:
-        if not abs_path:
-            db_path = tb_path(tb)
-        else:
+        if abs_path:
             db_path = tb
+        else:
+            db_path = str(tb_path(tb))
         format_tb = f"read_parquet('{db_path}/**/*.parquet')"
         convertor[tb] = format_tb
     pattern = re.compile("|".join(re.escape(k) for k in convertor.keys()))
@@ -105,98 +187,140 @@ def sql(
     return pl.sql(new_query)
 
 
-def read_mysql(query: str, db_conf: str = "databases.mysql") -> pl.DataFrame:
-    """
-    Reads data from a MySQL database.
+# ======================== Local Store Management ========================
 
-    Args:
-        query: The SQL query to execute.
-        db_conf: The configuration key in settings (e.g., "databases.mysql").
+
+def list_tables() -> list[str]:
+    """
+    列出所有表。
 
     Returns:
-        pl.DataFrame: The result of the query.
+        list[str]: 表名列表
 
-    Raises:
-        RuntimeError: If database configuration is missing or query execution fails.
+    Examples:
+        >>> list_tables()
+        ['users', 'orders', 'products']
     """
-    try:
-        db_setting = get_settings().get(db_conf, {})
-        required_keys = ["user", "password", "url"]
-        missing_keys = [key for key in required_keys if key not in db_setting]
-        if missing_keys:
-            raise KeyError(f"Missing required keys in database config: {missing_keys}")
-
-        user = urllib.parse.quote_plus(db_setting["user"])
-        password = urllib.parse.quote_plus(db_setting["password"])
-        uri = f"mysql://{user}:{password}@{db_setting['url']}"
-        return pl.read_database_uri(query, uri)
-
-    except KeyError as e:
-        raise RuntimeError(
-            "Database configuration error: missing required fields."
-        ) from e
-    except Exception as e:
-        raise RuntimeError(f"Failed to execute MySQL query: {e}") from e
+    return _local_store.list_tables()
 
 
-def write_mysql(df: pl.DataFrame, tb_name: str, db_conf: str = "databases.mysql"):
+def get_table_info(tb_name: str) -> dict:
     """
-    Writes a DataFrame to a MySQL database.
+    获取表的详细信息。
 
     Args:
-        df: The DataFrame to write.
-        tb_name: The name of the target table.
-        db_conf: The configuration key in settings (e.g., "databases.mysql").
-
-    Raises:
-        RuntimeError: If database configuration is missing.
-    """
-    db_setting = get_settings().get(db_conf, {})
-    required_keys = ["user", "password", "url"]
-    missing_keys = [key for key in required_keys if key not in db_setting]
-    if missing_keys:
-        raise KeyError(f"Missing required keys in database config: {missing_keys}")
-
-    user = urllib.parse.quote_plus(db_setting["user"])
-    password = urllib.parse.quote_plus(db_setting["password"])
-    uri = f"mysql+pymysql://{user}:{password}@{db_setting['url']}"
-    df.write_database(
-        table_name=f"{db_setting.get('database')}.{tb_name}",
-        connection=uri,
-        if_table_exists="append",
-    )
-
-
-def read_ck(query: str, db_conf: str = "databases.ck") -> pl.DataFrame:
-    """
-    Reads data from a ClickHouse cluster.
-
-    Args:
-        query: The SQL query to execute.
-        db_conf: The configuration key in settings (e.g., "databases.ck").
+        tb_name: 表名
 
     Returns:
-        pl.DataFrame: The result of the query.
+        dict: 表信息字典
 
     Raises:
-        RuntimeError: If database configuration is missing or query execution fails.
+        PathError: 表不存在
+
+    Examples:
+        >>> get_table_info("users")
+        {
+            'name': 'users',
+            'type': 'simple',
+            'columns': ['id', 'name', 'email'],
+            'dtypes': {'id': 'Int64', 'name': 'Utf8', 'email': 'Utf8'},
+            'rows': 1000,
+            'partitions': None,
+            'version': '1000_3_20240316123456',
+            'created_at': '2024-03-16T12:00:00',
+            'updated_at': '2024-03-16T12:34:56'
+        }
     """
-    try:
-        db_setting = get_settings().get(db_conf, {})
-        required_keys = ["user", "password", "urls"]
-        missing_keys = [key for key in required_keys if key not in db_setting]
-        if missing_keys:
-            raise KeyError(f"Missing required keys in database config: {missing_keys}")
+    return _local_store.get_table_info(tb_name)
 
-        user = urllib.parse.quote_plus(db_setting["user"])
-        password = urllib.parse.quote_plus(db_setting["password"])
 
-        with clickhouse_df.connect(db_setting["urls"], user=user, password=password):
-            return clickhouse_df.to_polars(query)
+def delete_table(tb_name: str) -> None:
+    """
+    删除表。
 
-    except KeyError as e:
-        raise RuntimeError(
-            "Database configuration error: missing required fields."
-        ) from e
-    except Exception as e:
-        raise RuntimeError(f"Failed to execute ClickHouse query: {e}") from e
+    Args:
+        tb_name: 表名
+
+    Raises:
+        PathError: 表不存在
+        FileOperationError: 删除失败
+
+    Examples:
+        >>> delete_table("old_table")
+    """
+    _local_store.delete_table(tb_name)
+
+
+def rename_table(old_name: str, new_name: str) -> None:
+    """
+    重命名表。
+
+    Args:
+        old_name: 旧表名
+        new_name: 新表名
+
+    Raises:
+        PathError: 表不存在或新表名已存在
+        FileOperationError: 重命名失败
+
+    Examples:
+        >>> rename_table("old_table", "new_table")
+    """
+    _local_store.rename_table(old_name, new_name)
+
+
+def copy_table(src_name: str, dst_name: str) -> None:
+    """
+    复制表。
+
+    Args:
+        src_name: 源表名
+        dst_name: 目标表名
+
+    Raises:
+        PathError: 源表不存在或目标表已存在
+        FileOperationError: 复制失败
+
+    Examples:
+        >>> copy_table("users", "users_backup")
+    """
+    _local_store.copy_table(src_name, dst_name)
+
+
+def optimize_table(tb_name: str) -> None:
+    """
+    优化表（合并小文件）。
+
+    Args:
+        tb_name: 表名
+
+    Raises:
+        PathError: 表不存在
+        FileOperationError: 优化失败
+
+    Examples:
+        >>> optimize_table("fragmented_table")
+    """
+    _local_store.optimize_table(tb_name)
+
+
+def check_table(tb_name: str) -> bool:
+    """
+    检查表完整性。
+
+    Args:
+        tb_name: 表名
+
+    Returns:
+        bool: 表是否完整
+
+    Raises:
+        PathError: 表不存在
+
+    Examples:
+        >>> check_table("users")
+        True
+        >>> check_table("corrupted_table")
+        False
+    """
+    return _local_store.check_table(tb_name)

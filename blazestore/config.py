@@ -1,15 +1,37 @@
+"""
+BlazeStore配置管理模块
+
+提供配置文件管理、路径处理和配置加载功能。
+"""
+
+from __future__ import annotations
+
 from pathlib import Path
 
 from dynaconf import Dynaconf
 from loguru import logger
 
-USERHOME = Path("~").expanduser()  # 用户家目录
-
+USERHOME = Path("~").expanduser()
 CONFIG_PATH = USERHOME / ".blaze" / "config.toml"
-DEFALUT_STORE_PATH = USERHOME / "BlazeStore"
+DEFAULT_STORE_PATH = USERHOME / "BlazeStore"
 
 
-def get_settings():
+def get_settings() -> Dynaconf:
+    """
+    获取BlazeStore配置对象。
+
+    该函数会检查配置文件是否存在，如果不存在则创建默认配置文件。
+    配置文件路径为 ~/.blaze/config.toml
+
+    Returns:
+        Dynaconf: 配置对象，可以通过get方法获取配置值
+
+    Examples:
+        >>> settings = get_settings()
+        >>> store_path = settings.get("paths.store")
+        >>> print(store_path)
+        /home/user/BlazeStore
+    """
     if CONFIG_PATH.exists():
         pass
     else:
@@ -17,10 +39,8 @@ def get_settings():
         CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
         CONFIG_PATH.touch()
 
-        # 处理路径中的反斜杠
-        store_path = str(DEFALUT_STORE_PATH).replace("\\", "/")
+        store_path = str(DEFAULT_STORE_PATH).replace("\\", "/")
 
-        # 构建配置文件内容（避免 f-string 中的反斜杠）
         content = "[paths]\n"
         content += f'store="{store_path}"\n'
 

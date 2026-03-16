@@ -1,3 +1,9 @@
+"""
+SQL解析模块
+
+提供SQL格式化、表名提取和临时表处理功能。
+"""
+
 from __future__ import annotations
 
 import re
@@ -7,13 +13,21 @@ import sqlparse
 
 def format_sql(sql_content: str) -> str:
     """
-    Normalizes SQL statements and removes comments.
+    标准化SQL语句并移除注释。
 
     Args:
-        sql_content: The input SQL string.
+        sql_content: 输入的SQL字符串
 
     Returns:
-        str: The formatted SQL string.
+        str: 格式化后的SQL字符串
+
+    Examples:
+        >>> sql = "SELECT * FROM table -- comment"
+        >>> format_sql(sql)
+        'SELECT * FROM table'
+        >>> sql = "SELECT  /* comment */  * FROM table"
+        >>> format_sql(sql)
+        'SELECT * FROM table'
     """
     parse_str = sqlparse.format(sql_content, reindent=True, strip_comments=True)
     return parse_str
@@ -21,13 +35,18 @@ def format_sql(sql_content: str) -> str:
 
 def extract_temp_tables(with_clause: str) -> list[str]:
     """
-    Extracts temporary table names from a WITH clause.
+    从WITH子句中提取临时表名。
 
     Args:
-        with_clause: The SQL WITH clause string.
+        with_clause: SQL的WITH子句字符串
 
     Returns:
-        list[str]: A list of temporary table names.
+        list[str]: 临时表名列表
+
+    Examples:
+        >>> with_clause = "WITH temp1 AS (SELECT * FROM t1), temp2 AS (SELECT * FROM t2)"
+        >>> extract_temp_tables(with_clause)
+        ['temp1', 'temp2']
     """
     temp_tables = re.findall(r"\b(\w+)\s*as\s*\(", with_clause, re.IGNORECASE)
     return temp_tables
@@ -35,50 +54,50 @@ def extract_temp_tables(with_clause: str) -> list[str]:
 
 def extract_table_names_from_sql(sql_query: str) -> set[str] | list[str]:
     """
-    Extracts table names from a SQL query.
+    从SQL查询中提取表名。
+
+    该函数会解析SQL语句，提取FROM和JOIN子句中的表名，
+    并排除WITH子句中定义的临时表。
 
     Args:
-        sql_query: The SQL query string.
+        sql_query: SQL查询字符串
 
     Returns:
-        set[str] | list[str]: A collection of extracted table names.
+        set[str] | list[str]: 提取的表名集合或列表
+
+    Examples:
+        >>> sql = "SELECT * FROM users JOIN orders ON users.id = orders.user_id"
+        >>> extract_table_names_from_sql(sql)
+        {'users', 'orders'}
+        >>> sql = "WITH temp AS (SELECT * FROM t1) SELECT * FROM temp JOIN t2 ON temp.id = t2.id"
+        >>> extract_table_names_from_sql(sql)
+        ['t2']
     """
     table_names = set()
-    # Parse SQL statement
     parsed = sqlparse.parse(sql_query)
-    # Regex pattern to match table names
     table_name_pattern = r"\bFROM\s+([^\s\(\)\,]+)|\bJOIN\s+([^\s\(\)\,]+)"
 
-    # Store temporary table names from WITH clause
     remove_with_name = []
 
-    # Iterate through parsed statements
     for statement in parsed:
-        # Convert to string
-        statement_str = str(statement)  # .lower()
+        statement_str = str(statement)
 
-        # Remove special syntax
         statement_str = re.sub(
             r"(substring|extract)\s*\(((.|\s)*?)\)", "", statement_str
         )
 
-        # Find matching table names
         matches = re.findall(table_name_pattern, statement_str, re.IGNORECASE)
 
         for match in matches:
-            # Extract non-empty table name parts
             for name in match:
                 if name:
-                    # Keep only the last part for names with namespaces
                     table_name = name.split(".")[-1]
-                    # Remove special characters from table name
                     table_name = re.sub(r'("|`|\'|;)', "", table_name)
                     table_names.add(table_name)
 
-        # Handle special WITH clauses
         if "with" in statement_str:
             remove_with_name = extract_temp_tables(statement_str)
-    # Remove temporary table names
+
     if remove_with_name:
         table_names = list(set(table_names) - set(remove_with_name))
 
