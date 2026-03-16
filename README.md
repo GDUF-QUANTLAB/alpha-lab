@@ -15,12 +15,12 @@
 
 - **🚀 极致性能**: 基于 Rust 编写的 **Polars** 引擎，支持多线程并行计算、SIMD 优化及外存（Out-of-Core）处理。
 - **💾 混合存储架构**:
-    - **Blazestore**: 基于 Parquet 的本地数据仓库，支持自动分区管理与谓词下推，专为高频行情设计。
+    - **Blazestore**: 基于 Parquet 的本地数据仓库，支持自动分区管理、Hive分区结构和谓词下推，专为高频行情设计。
     - **ClickHouse**: 无缝集成 ClickHouse 数据库，适合海量截面数据的 OLAP 分析。
 - **🛠 工程化工具箱 (Toolbox)**:
     - **Xcals**: 内置高精度中国市场交易日历，支持复杂的交易日推算、偏移及周期聚合。
     - **Ygo**: 针对 IO 密集型与 CPU 密集型任务优化的并发调度器，简化大规模数据清洗流程。
-- **🔄 数据复用设计**: 独创的“统一视图”模式，无缝连接按天存储的行情数据（Market Data）与按表存储的基础信息（Inform Data），最大化 IO 效率。
+- **🔄 数据复用设计**: 独创的"统一视图"模式，无缝连接按天存储的行情数据（Market Data）与按表存储的基础信息（Inform Data），最大化 IO 效率。
 
 ## 📦 安装指南 (Installation)
 
@@ -68,51 +68,87 @@ pip install -e .[dev]
 
 项目首次运行会自动在用户主目录 (`~`) 下生成必要的配置文件。
 
-1.  **交易日历配置** (`~/.xcals`)
+1. **交易日历配置** (`~/.xcals`)
     - 存放交易日历数据文件，确保 `xcals` 模块能正确计算交易日。
 
-2.  **Blazestore 配置** (`~/.blaze/config.toml`)
+2. **Blazestore 配置** (`~/.blaze/config.toml`)
     - 配置本地数据仓库的存储路径。
     - 示例内容：
       ```toml
-      [storage]
-      root = "/data/blazestore"
-      compression = "zstd"
+      [paths]
+      store = "/home/user/BlazeStore"
+
+      [databases.mysql]
+      user = "your_user"
+      password = "your_password"
+      url = "localhost:3306/database_name"
+      database = "database_name"
+
+      [databases.ck]
+      user = "your_user"
+      password = "your_password"
+      urls = "localhost:8123"
       ```
 
 ## 🚀 快速上手 (Quick Start)
 
-### 对于因子研究员
-因子研究员可以直接使用 `datacenter` 模块获取数据，无需了解底层存储细节。请查看 [4. 因子研究示例](#4-因子研究示例) 了解如何使用。
+### BlazeStore 使用示例
 
-### 系统架构参考
-
-#### 1. 本地数据仓库 (Blazestore)
-底层存储引擎，用于数据的持久化与高效查询。
+BlazeStore 提供本地 Parquet 存储和数据库集成的统一接口。
 
 ```python
 import polars as pl
 from blazestore import core
 
-# 1. 写入数据 (自动处理分区与元数据)
+# 1. 写入数据（支持分区）
 df = pl.DataFrame({
     "date": ["2023-01-01", "2023-01-01", "2023-01-02"],
     "asset": ["000001", "000002", "000001"],
     "close": [10.5, 20.0, 10.6]
 })
-# 假设按 date 分区存储
+
+# 写入非分区表
 core.put(df, tb_name="daily_bars")
 
-# 2. 查询数据 (SQL 风格，支持 Lazy Evaluation)
-# 此时不进行实际 IO，仅构建查询计划
+# 写入分区表（Hive分区结构）
+core.put(df, tb_name="daily_bars_partitioned", partitions=["date"])
+
+# 2. 查询数据（SQL 风格，支持 Lazy Evaluation）
 lazy_df = core.sql("SELECT * FROM daily_bars WHERE date = '2023-01-01'")
 
 # 3. 执行计算
 result = lazy_df.collect()
 print(result)
+
+# 4. 表管理
+core.list_tables()  # 列出所有表
+core.get_table_info("daily_bars")  # 获取表信息
+core.delete_table("old_table")  # 删除表
+core.rename_table("old_name", "new_name")  # 重命名表
+core.copy_table("src_table", "dst_table")  # 复制表
+core.optimize_table("fragmented_table")  # 优化表（合并小文件）
+core.check_table("my_table")  # 检查表完整性
 ```
 
-### 2. 交易日历 (Xcals)
+### 数据库集成
+
+```python
+from blazestore import MySQLClient, ClickHouseClient, read_mysql, write_mysql, read_ck
+
+# 方式1：使用客户端类
+mysql_client = MySQLClient()
+df = mysql_client.read("SELECT * FROM users WHERE id = 1")
+
+# 方式2：使用便捷函数
+df = read_mysql("SELECT * FROM users WHERE id = 1")
+write_mysql(df, "users_backup")
+
+# ClickHouse 只读
+df = read_ck("SELECT * FROM stocks WHERE date >= '2023-01-01'")
+```
+
+### 交易日历 (Xcals)
+
 处理复杂的交易日逻辑。
 
 ```python
@@ -128,7 +164,8 @@ next_day = api.shift_tradeday("2023-01-20", 1)
 is_open = api.is_tradeday("2023-01-22")  # False (Sunday)
 ```
 
-### 3. 高级模式：数据清洗与复用
+### 高级模式：数据清洗与复用
+
 结合 `ygo` 并发调度与 `datacenter` 数据抽象，实现高效的数据清洗流水线。
 
 ```python
@@ -156,7 +193,8 @@ for date in ["2023-01-01", "2023-01-02"]:
 pool.do()
 ```
 
-### 4. 因子研究示例
+### 因子研究示例
+
 对于因子研究员，我们提供了简洁的数据访问接口，无需了解底层存储细节。
 
 ```python
@@ -171,9 +209,9 @@ trading_days = xcals.get_tradingdays(start_date, end_date)
 
 # 读取股票日线数据
 df = dc.md.read_data_batch(
-    start_date, 
-    end_date, 
-    dc.Instrument.STOCK, 
+    start_date,
+    end_date,
+    dc.Instrument.STOCK,
     dc.DataType.KLINE_DAY
 )
 
@@ -201,6 +239,14 @@ alpha-lab/
 │   ├── ygo/            # 并发任务调度器
 │   └── clickhouse_df/  # ClickHouse 客户端封装
 ├── blazestore/         # 本地 Parquet 存储引擎
+│   ├── core.py         # 本地存储 API
+│   ├── local.py        # LocalStore 类实现
+│   ├── clients/        # 数据库客户端
+│   │   ├── mysql.py   # MySQL 客户端
+│   │   └── clickhouse.py  # ClickHouse 客户端
+│   ├── config.py       # 配置管理
+│   ├── parse.py        # SQL 解析工具
+│   └── exceptions.py    # 自定义异常
 ├── datacenter/         # 数据访问层 (Data Access Object)
 │   ├── market_data/    # 行情数据接口
 │   └── inform_data/    # 基础信息数据接口
@@ -213,15 +259,18 @@ alpha-lab/
 
 欢迎提交 Issue 和 Pull Request！在提交代码前，请确保通过以下检查：
 
-1.  **代码格式化**: 本项目使用 `ruff` 进行代码检查和格式化。
+1. **代码格式化**: 本项目使用 `ruff` 进行代码检查和格式化。
     ```bash
-    # 检查并自动修复 Lint 错误
+    # 检查代码
+    ruff check .
+
+    # 自动修复 Lint 错误
     ruff check . --fix
 
     # 格式化代码
     ruff format .
     ```
-2.  **运行测试**:
+2. **运行测试**:
     ```bash
     pytest tests/
     ```
