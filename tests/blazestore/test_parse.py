@@ -2,7 +2,6 @@
 BlazeStore SQL解析模块测试
 """
 
-
 from blazestore import parse
 
 
@@ -89,7 +88,9 @@ def test_extract_table_names_from_sql_with_quotes():
 
 def test_extract_table_names_from_sql_with_with_clause():
     """测试从带WITH子句的SQL中提取表名"""
-    sql = "WITH temp AS (SELECT * FROM t1) SELECT * FROM temp JOIN t2 ON temp.id = t2.id"
+    sql = (
+        "WITH temp AS (SELECT * FROM t1) SELECT * FROM temp JOIN t2 ON temp.id = t2.id"
+    )
     result = parse.extract_table_names_from_sql(sql)
     assert "t2" in result
     assert "t1" in result
@@ -144,6 +145,8 @@ def test_extract_table_names_from_sql_returns_set():
 
 def test_extract_table_names_from_sql_with_with_returns_list():
     """测试带WITH子句时返回类型为list"""
-    sql = "WITH temp AS (SELECT * FROM t1) SELECT * FROM temp JOIN t2 ON temp.id = t2.id"
+    sql = (
+        "WITH temp AS (SELECT * FROM t1) SELECT * FROM temp JOIN t2 ON temp.id = t2.id"
+    )
     result = parse.extract_table_names_from_sql(sql)
     assert isinstance(result, (set, list))
