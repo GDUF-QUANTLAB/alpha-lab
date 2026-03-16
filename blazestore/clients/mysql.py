@@ -10,14 +10,13 @@ import polars as pl
 
 from ..config import get_settings
 from ..exceptions import ConnectionError, QueryError, WriteError
-from ..protocols import DatabaseReader, DatabaseWriter
 
 
-class MySQLClient(DatabaseReader, DatabaseWriter):
+class MySQLClient:
     """
     MySQL数据库客户端。
 
-    实现DatabaseReader和DatabaseWriter协议，提供MySQL数据库的读写功能。
+    提供MySQL数据库的读写功能。
     """
 
     def __init__(self, db_conf: str = "databases.mysql") -> None:

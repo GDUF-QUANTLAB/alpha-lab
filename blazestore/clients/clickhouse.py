@@ -12,14 +12,13 @@ from tool_box import clickhouse_df
 
 from ..config import get_settings
 from ..exceptions import ConfigError, ConnectionError, QueryError
-from ..protocols import DatabaseReader
 
 
-class ClickHouseClient(DatabaseReader):
+class ClickHouseClient:
     """
     ClickHouse数据库客户端。
 
-    实现DatabaseReader协议，提供ClickHouse数据库的读取功能。
+    提供ClickHouse数据库的读取功能。
     """
 
     def __init__(self, db_conf: str = "databases.ck") -> None:

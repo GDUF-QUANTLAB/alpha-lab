@@ -220,11 +220,14 @@ class LocalStore:
             "name": tb_name,
             "type": "partitioned" if is_partitioned else "simple",
             "columns": list(df.columns),
-            "dtypes": {col: str(dtype) for col, dtype in zip(df.columns, df.dtypes, strict=True)},
+            "dtypes": {
+                col: str(dtype)
+                for col, dtype in zip(df.columns, df.dtypes, strict=True)
+            },
             "rows": len(df),
             "partitions": partitions,
             "created_at": datetime.fromtimestamp(tbpath.stat().st_ctime).isoformat(),
-            "updated_at": datetime.now().isoformat(),
+            "updated_at": datetime.fromtimestamp(tbpath.stat().st_mtime).isoformat(),
         }
 
         info["version"] = self._compute_version(info)
@@ -378,11 +381,14 @@ class LocalStore:
             "name": tb_name,
             "type": "partitioned" if is_partitioned else "simple",
             "columns": list(df.columns),
-            "dtypes": {col: str(dtype) for col, dtype in zip(df.columns, df.dtypes, strict=True)},
+            "dtypes": {
+                col: str(dtype)
+                for col, dtype in zip(df.columns, df.dtypes, strict=True)
+            },
             "rows": len(df),
             "partitions": partitions,
             "created_at": datetime.fromtimestamp(tbpath.stat().st_ctime).isoformat(),
-            "updated_at": datetime.now().isoformat(),
+            "updated_at": datetime.fromtimestamp(tbpath.stat().st_mtime).isoformat(),
         }
 
         info["version"] = self._compute_version(info)
