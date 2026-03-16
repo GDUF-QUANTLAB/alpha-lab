@@ -373,8 +373,14 @@ class LocalStore:
             df: DataFrame
             partitions: 分区列名列表
         """
-        tbpath = self.tb_path(tb_name)
         metadata_path = self.metadata_path(tb_name)
+
+        now = datetime.now().isoformat()
+
+        existing_metadata = self._load_metadata(tb_name)
+        created_at = (
+            existing_metadata.get("created_at", now) if existing_metadata else now
+        )
 
         is_partitioned = partitions is not None
         info = {
@@ -387,8 +393,8 @@ class LocalStore:
             },
             "rows": len(df),
             "partitions": partitions,
-            "created_at": datetime.fromtimestamp(tbpath.stat().st_ctime).isoformat(),
-            "updated_at": datetime.fromtimestamp(tbpath.stat().st_mtime).isoformat(),
+            "created_at": created_at,
+            "updated_at": now,
         }
 
         info["version"] = self._compute_version(info)
@@ -429,3 +435,31 @@ class LocalStore:
 
         timestamp = updated_at.replace("-", "").replace(":", "").replace("T", "")[:14]
         return f"{rows}_{col_count}_{timestamp}"
+
+    def get_actual_mtime(self, tb_name: str) -> str:
+        """
+        获取表数据的实际修改时间（遍历所有 Parquet 文件）。
+
+        不依赖 meta.json，直接扫描文件系统获取最新修改时间。
+        用于验证 meta.json 的准确性或诊断数据变更。
+
+        Args:
+            tb_name: 表名
+
+        Returns:
+            str: ISO 格式的时间戳
+
+        Raises:
+            PathError: 表不存在
+            FileOperationError: 表为空或无 Parquet 文件
+        """
+        tbpath = self.tb_path(tb_name)
+        if not tbpath.exists():
+            raise PathError(f"Table {tb_name} does not exist")
+
+        parquet_files = list(tbpath.rglob("*.parquet"))
+        if not parquet_files:
+            raise FileOperationError(f"No parquet files found in table {tb_name}")
+
+        latest_mtime = max(f.stat().st_mtime for f in parquet_files)
+        return datetime.fromtimestamp(latest_mtime).isoformat()

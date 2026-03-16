@@ -324,3 +324,32 @@ def check_table(tb_name: str) -> bool:
         False
     """
     return _local_store.check_table(tb_name)
+
+
+def get_actual_mtime(tb_name: str) -> str:
+    """
+    获取表数据的实际修改时间（遍历所有 Parquet 文件）。
+
+    不依赖 meta.json，直接扫描文件系统获取最新修改时间。
+    用于验证 meta.json 的准确性或诊断数据变更。
+
+    Args:
+        tb_name: 表名
+
+    Returns:
+        str: ISO 格式的时间戳
+
+    Raises:
+        PathError: 表不存在
+        FileOperationError: 表为空或无 Parquet 文件
+
+    Examples:
+        >>> get_actual_mtime("stocks")
+        '2024-03-16T12:34:56.789012'
+
+        >>> info = get_table_info("stocks")
+        >>> actual_mtime = get_actual_mtime("stocks")
+        >>> if info["updated_at"] < actual_mtime:
+        ...     print("警告：数据可能被外部修改！")
+    """
+    return _local_store.get_actual_mtime(tb_name)
