@@ -28,6 +28,7 @@ dependencies = [
     "sqlparse>=0.5.5",
     "dynaconf>=3.2.12",
     "pytest>=9.0.0",
+    "rich>=14.3.3",
 ]
 
 [project.optional-dependencies]
@@ -35,7 +36,7 @@ dev = ["pytest", "ruff"]
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["tool_box*", "blazestore*", "datacenter*"]
+include = ["tool_box*", "blazestore*", "datacenter*", "factor*"]
 
 [tool.ruff]
 line-length = 88
