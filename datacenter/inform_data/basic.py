@@ -239,7 +239,7 @@ def adj_factors(date: str, instrument: Instrument = Instrument.STOCK) -> pl.Lazy
         .agg(pl.col("AdjustingFactor").sort_by("ExDiviDate").last())
         .sort("InnerCode"),
         on="InnerCode",
-    ).select("asset", pl.col("AdjustingFactor").alias("value"))
+    ).select("asset", pl.col("AdjustingFactor").alias("adj_factor"))
 
 
 def mainshlistnew(date: str, instrument: Instrument = Instrument.STOCK) -> pl.LazyFrame:
