@@ -149,14 +149,20 @@ print(factor_df.head())
 ```python
 import datacenter as dc
 
-# 读取股票基本信息
-stock_info = dc.id.get_stock_info()
+# 获取股票代码列表
+stock_codes = dc.jy.codes(date="2023-01-01")
+
+# 获取可用股票（经过筛选）
+available_stocks = dc.jy.asset(date="2023-01-01")
 
 # 读取行业分类
-industry = dc.id.get_industry_classification()
+industry = dc.jy.industry(date="2023-01-01")
 
-# 读取指数成分
-index_constituents = dc.id.get_index_constituents("000001.SH")
+# 读取股本信息
+shares = dc.jy.shares(date="2023-01-01")
+
+# 读取复权因子
+adj_factors = dc.jy.adj_factors(date="2023-01-01")
 ```
 
 ## 📄 许可证 (License)
