@@ -13,8 +13,10 @@ from .clients import (
 )
 from .config import get_settings
 from .core import (
+    TableCursor,
     check_table,
     copy_table,
+    cursor,
     delete_table,
     get_actual_mtime,
     get_local_store,
@@ -45,6 +47,9 @@ __all__ = [
     "copy_table",
     "optimize_table",
     "check_table",
+    # Table Cursor
+    "TableCursor",
+    "cursor",
     # Database Clients
     "MySQLClient",
     "ClickHouseClient",
