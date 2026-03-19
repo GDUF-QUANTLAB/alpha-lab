@@ -12,9 +12,9 @@ from typing import Any, TypeVar
 
 from joblib import Parallel, delayed
 from loguru import logger
-from tqdm.auto import tqdm
 
 from .delay import DelayedFunction, delay
+from .progress import ProgressManager
 
 T = TypeVar("T")
 
@@ -82,23 +82,22 @@ def multi_task_name(
     )
 
     if show_progress:
-        tqdm_map = {k: tqdm(desc=f"{k} ", total=len(v)) for k, v in job_map.items()}
+        with ProgressManager(show_progress=True) as progress_mgr:
+            for name, jobs in job_map.items():
+                progress_mgr.create_task(name, total=len(jobs))
 
-        job_lst = []
-        for name, jobs in job_map.items():
-            for job in jobs:
-                job_lst.append(delayed(run_job)(job=job, task_name=name))
+            job_lst = []
+            for name, jobs in job_map.items():
+                for job in jobs:
+                    job_lst.append(delayed(run_job)(job=job, task_name=name))
 
-        results: dict[str, list[Any]] = {}
-        for name, result in _parallel(job_lst):
-            tqdm_map[name].update(1)
-            if results.get(name) is None:
-                results[name] = [result]
-            else:
-                results[name].append(result)
-
-        for v in tqdm_map.values():
-            v.close()
+            results: dict[str, list[Any]] = {}
+            for name, result in _parallel(job_lst):
+                progress_mgr.update(progress_mgr._task_map.get(name))
+                if results.get(name) is None:
+                    results[name] = [result]
+                else:
+                    results[name].append(result)
     else:
         job_lst = []
         for name, jobs in job_map.items():
