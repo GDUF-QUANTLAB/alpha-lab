@@ -168,7 +168,11 @@ class LocalStore:
             if not parquet_files:
                 raise FileOperationError(f"No parquet files found in table {tb_name}")
 
-            return pl.read_parquet(tbpath / "**/*.parquet")
+            is_partitioned = self._is_partitioned_table(tb_name)
+            if is_partitioned:
+                return pl.scan_parquet(tbpath / "**/*.parquet", hive_partitioning=True)
+            else:
+                return pl.scan_parquet(tbpath / "**/*.parquet")
         except Exception as e:
             if isinstance(e, (PathError, FileOperationError)):
                 raise

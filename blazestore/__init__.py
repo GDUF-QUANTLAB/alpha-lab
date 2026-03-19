@@ -13,10 +13,8 @@ from .clients import (
 )
 from .config import get_settings
 from .core import (
-    TableCursor,
     check_table,
     copy_table,
-    cursor,
     delete_table,
     get_actual_mtime,
     get_local_store,
@@ -30,6 +28,7 @@ from .core import (
     sql,
     tb_path,
 )
+from .cursor import TableCursor, cursor
 
 __all__ = [
     # Config
