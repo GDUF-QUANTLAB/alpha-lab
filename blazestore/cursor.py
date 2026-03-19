@@ -225,7 +225,12 @@ class TableCursor:
         """
         return check_table(self.tb_name)
 
-    def write(self, df: pl.DataFrame, partitions: list[str] | None = None) -> None:
+    def write(
+        self,
+        df: pl.DataFrame,
+        path: str = None,
+        partitions: list[str] | None = None,
+    ) -> None:
         """
         写入数据到表。
 
@@ -243,7 +248,11 @@ class TableCursor:
             >>> cursor.write(df)
             >>> cursor.write(df, partitions=["b"])
         """
-        put(df, self.tb_name, partitions=partitions)
+        if path is not None:
+            path = f"{self.path()}/{path}"
+        else:
+            path = self.tb_name
+        put(df, path, partitions=partitions)
 
 
 def cursor(tb_name: str) -> TableCursor:
