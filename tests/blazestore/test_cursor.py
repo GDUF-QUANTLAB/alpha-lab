@@ -104,7 +104,7 @@ def test_cursor_mtime(temp_store, sample_table):
 def test_cursor_read(temp_store, sample_table, sample_df):
     """测试游标read方法"""
     tbl = TableCursor(sample_table)
-    df = tbl.read()
+    df = tbl.read().collect()
 
     assert isinstance(df, pl.DataFrame)
     assert len(df) == 5
@@ -141,7 +141,7 @@ def test_cursor_write(temp_store, sample_df):
     tbl.write(sample_df)
     assert tbl.exists()
 
-    df = tbl.read()
+    df = tbl.read().collect()
     assert len(df) == 5
 
 
@@ -153,7 +153,7 @@ def test_cursor_write_with_partitions(temp_store, sample_df):
     tbl.write(sample_df, partitions=["name"])
     assert tbl.exists()
 
-    df = tbl.read()
+    df = tbl.read().collect()
     assert len(df) == 5
 
 
@@ -198,8 +198,8 @@ def test_cursor_copy(temp_store, sample_table):
     tbl2 = TableCursor(dst_name)
     assert tbl2.exists()
 
-    src_df = tbl.read()
-    dst_df = tbl2.read()
+    src_df = tbl.read().collect()
+    dst_df = tbl2.read().collect()
     assert src_df.equals(dst_df)
 
 
@@ -233,7 +233,7 @@ def test_cursor_workflow(temp_store, sample_df):
     info = tbl.info()
     assert info["rows"] == 5
 
-    df = tbl.read()
+    df = tbl.read().collect()
     assert len(df) == 5
 
     result = tbl.sql("SELECT * FROM workflow_table WHERE age > 30", lazy=False)

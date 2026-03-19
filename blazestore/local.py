@@ -104,7 +104,7 @@ class LocalStore:
 
     def put(
         self,
-        df: pl.DataFrame,
+        df: pl.DataFrame | pl.LazyFrame,
         tb_name: str,
         partitions: list[str] | None = None,
     ) -> None:
@@ -119,6 +119,8 @@ class LocalStore:
         Raises:
             FileOperationError: 文件写入失败
         """
+        if isinstance(df, pl.LazyFrame):
+            df = df.collect()
         try:
             tbpath = self.tb_path(tb_name)
             if not tbpath.exists():
