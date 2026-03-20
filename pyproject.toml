@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "alpha-lab"
-version = "0.1.2-alpha"
+version = "0.1.2-beta"
 description = "A High-performance And Standard Alpha Factor Mining System"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -39,7 +39,7 @@ dev = ["pytest", "ruff"]
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["tool_box*", "blazestore*", "datacenter*", "factor*", "alpha_master*"]
+include = ["tool_box*", "blazestore*", "datacenter*"]
 
 [tool.ruff]
 line-length = 88
