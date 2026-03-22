@@ -9,7 +9,6 @@ from .basic import (
     stk_kline_minute,
     stk_tick,
 )
-from .table import get_data
 
 __all__ = [
     "read_data",
@@ -21,5 +20,4 @@ __all__ = [
     "stk_kline_day",
     "stk_kline_minute",
     "stk_tick",
-    "get_data",
 ]
