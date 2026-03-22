@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "alpha-lab"
-version = "0.1.3"
+version = "0.1.4"
 description = "A High-performance And Standard Alpha Factor Mining System"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -26,7 +26,6 @@ dependencies = [
     "loguru>=0.7.0",
     "sqlparse>=0.5.5",
     "dynaconf>=3.2.13",
-    "pytest>=9.0.0",
     "rich>=14.3.3",
     "varname>=0.15.1",
     "toolz>=1.1.0",
@@ -39,7 +38,14 @@ dev = ["pytest", "ruff"]
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["tool_box*", "blazestore*", "datacenter*"]
+include = [
+    "tool_box*",
+    "blazestore*",
+    "datacenter*",
+    "vfunc*",
+    "factor*",
+    "alphamaster*",
+]
 
 [tool.ruff]
 line-length = 88
