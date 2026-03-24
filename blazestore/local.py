@@ -1,12 +1,11 @@
 """
-本地存储管理类
+本地存储管理模块
 
-提供本地Parquet文件的完整管理功能，支持非分区表和Hive分区表。
+提供本地Parquet文件的存储和管理功能，支持非分区表和Hive分区表。
 """
 
 from __future__ import annotations
 
-import json
 import shutil
 from datetime import datetime
 from pathlib import Path
@@ -24,53 +23,38 @@ class LocalStore:
     """
     本地存储管理类。
 
-    提供本地Parquet文件的完整管理功能，支持非分区表和Hive分区表。
+    提供本地Parquet文件的存储和管理功能，支持非分区表和Hive分区表。
+
+    Args:
+        base_path: 存储根目录，默认从配置文件读取。
+
+    Examples:
+        >>> store = LocalStore()
+        >>> store.put(df, "stocks")
+        >>> store.put(df, "stocks/2024.parquet")
+        >>> store.put(df, "stocks", partitions=["date"])
     """
 
-    def __init__(self, base_path: Path | None = None) -> None:
-        """
-        初始化本地存储。
-
-        Args:
-            base_path: 基础路径，默认为配置中的store路径
-        """
-        self.base_path = base_path or Path(DB_PATH)
-
-    def tb_path(self, tb_name: str) -> Path:
-        """
-        获取表的完整路径。
-
-        Args:
-            tb_name: 表名
-
-        Returns:
-            Path: 表的完整路径
-        """
-        return self.base_path / tb_name
-
-    def metadata_path(self, tb_name: str) -> Path:
-        """
-        获取元数据文件的路径。
-
-        Args:
-            tb_name: 表名
-
-        Returns:
-            Path: 元数据文件路径
-        """
-        return self.tb_path(tb_name) / ".metadata.json"
+    def __init__(self, base_path: Path | str | None = None) -> None:
+        self.base_path = Path(DB_PATH)
+        if base_path is None:
+            return
+        if isinstance(base_path, str):
+            self.base_path = Path(base_path)
+            return
+        self.base_path = base_path
 
     def _is_partitioned_table(self, tb_name: str) -> bool:
         """
-        检测表是否为分区表。
+        检测表是否为Hive分区表。
 
         Args:
-            tb_name: 表名
+            tb_name: 表名或路径。
 
         Returns:
-            bool: 是否为分区表
+            bool: 是否为分区表。
         """
-        tbpath = self.tb_path(tb_name)
+        tbpath = self.base_path.joinpath(*tb_name.split("/"))
         if not tbpath.exists():
             return False
 
@@ -81,18 +65,18 @@ class LocalStore:
 
     def _get_partition_columns(self, tb_name: str) -> list[str]:
         """
-        提取分区列。
+        提取分区列名。
 
         Args:
-            tb_name: 表名
+            tb_name: 表名或路径。
 
         Returns:
-            list[str]: 分区列列表
+            list[str]: 分区列名列表。
         """
         if not self._is_partitioned_table(tb_name):
             return []
 
-        tbpath = self.tb_path(tb_name)
+        tbpath = self.base_path.joinpath(*tb_name.split("/"))
         partition_cols = set()
 
         for item in tbpath.iterdir():
@@ -105,72 +89,93 @@ class LocalStore:
     def put(
         self,
         df: pl.DataFrame | pl.LazyFrame,
-        tb_name: str,
+        path: str,
         partitions: list[str] | None = None,
     ) -> None:
         """
-        将DataFrame写入本地存储。
+        写入DataFrame到本地存储，自动识别写入模式。
+
+        三种模式：
+        - path 以 .parquet 结尾 -> 直接写入指定文件
+        - path 是目录 + partitions -> Hive分区写入
+        - path 是目录 -> 写入 data.parquet
 
         Args:
-            df: 要写入的DataFrame
-            tb_name: 表名
-            partitions: 分区列名列表
+            df: 要写入的DataFrame或LazyFrame。
+            path: 相对路径（相对于base_path）。
+            partitions: 分区列名列表（可选）。
 
         Raises:
-            FileOperationError: 文件写入失败
+            FileOperationError: 写入失败。
+
+        Examples:
+            >>> store.put(df, "stocks")
+            >>> store.put(df, "stocks/2024.parquet")
+            >>> store.put(df, "stocks", partitions=["date"])
         """
         if isinstance(df, pl.LazyFrame):
             df = df.collect()
         try:
-            tbpath = self.tb_path(tb_name)
-            if not tbpath.exists():
-                tbpath.mkdir(parents=True, exist_ok=True)
+            target_path = self.base_path.joinpath(*path.split("/"))
 
-            if partitions is not None:
-                df.write_parquet(tbpath, partition_by=partitions)
+            if path.endswith(".parquet"):
+                target_path.parent.mkdir(parents=True, exist_ok=True)
+                df.write_parquet(target_path)
+            elif partitions:
+                target_path.mkdir(parents=True, exist_ok=True)
+                df.write_parquet(target_path, partition_by=partitions)
             else:
-                df.write_parquet(tbpath / "data.parquet")
-
-            self._update_metadata(tb_name, df, partitions)
+                target_path.mkdir(parents=True, exist_ok=True)
+                df.write_parquet(target_path / "data.parquet")
         except Exception as e:
-            raise FileOperationError(f"Failed to write table {tb_name}: {e}", e) from e
+            raise FileOperationError(f"Failed to write to {path}: {e}", e) from e
 
-    def has(self, tb_name: str) -> bool:
+    def has(self, path: str) -> bool:
         """
-        判断表是否存在。
+        判断路径是否存在。
 
         Args:
-            tb_name: 表名
+            path: 相对路径。
 
         Returns:
-            bool: 表是否存在
-        """
-        return self.tb_path(tb_name).exists()
+            bool: 路径是否存在。
 
-    def read(self, tb_name: str) -> pl.DataFrame:
+        Examples:
+            >>> store.has("stocks")
+            True
         """
-        读取表数据。
+        return self.base_path.joinpath(*path.split("/")).exists()
+
+    def read(self, path: str) -> pl.LazyFrame:
+        """
+        读取Parquet文件为LazyFrame。
+
+        自动检测Hive分区表并启用hive_partitioning。
 
         Args:
-            tb_name: 表名
+            path: 相对路径。
 
         Returns:
-            pl.DataFrame: 表数据
+            pl.LazyFrame: 懒加载数据框。
 
         Raises:
-            PathError: 表不存在
-            FileOperationError: 文件读取失败
+            PathError: 路径不存在。
+            FileOperationError: 读取失败。
+
+        Examples:
+            >>> df = store.read("stocks").collect()
+            >>> df = store.read("stocks").filter(pl.col("price") > 100).collect()
         """
         try:
-            tbpath = self.tb_path(tb_name)
+            tbpath = self.base_path.joinpath(*path.split("/"))
             if not tbpath.exists():
-                raise PathError(f"Table {tb_name} does not exist")
+                raise PathError(f"Path {path} does not exist")
 
             parquet_files = list(tbpath.rglob("*.parquet"))
             if not parquet_files:
-                raise FileOperationError(f"No parquet files found in table {tb_name}")
+                raise FileOperationError(f"No parquet files found in {path}")
 
-            is_partitioned = self._is_partitioned_table(tb_name)
+            is_partitioned = self._is_partitioned_table(path)
             if is_partitioned:
                 return pl.scan_parquet(tbpath / "**/*.parquet", hive_partitioning=True)
             else:
@@ -178,14 +183,18 @@ class LocalStore:
         except Exception as e:
             if isinstance(e, (PathError, FileOperationError)):
                 raise
-            raise FileOperationError(f"Failed to read table {tb_name}: {e}", e) from e
+            raise FileOperationError(f"Failed to read {path}: {e}", e) from e
 
     def list_tables(self) -> list[str]:
         """
-        列出所有表。
+        列出所有表名。
 
         Returns:
-            list[str]: 表名列表
+            list[str]: 表名列表。
+
+        Examples:
+            >>> store.list_tables()
+            ['stocks', 'orders', 'users']
         """
         if not self.base_path.exists():
             return []
@@ -198,31 +207,31 @@ class LocalStore:
 
     def get_table_info(self, tb_name: str) -> dict[str, Any]:
         """
-        获取表的详细信息。
+        获取表的详细信息（实时扫描）。
 
         Args:
-            tb_name: 表名
+            tb_name: 表名。
 
         Returns:
-            dict[str, Any]: 表信息字典
+            dict: 包含name、type、columns、dtypes、rows、partitions等字段。
 
         Raises:
-            PathError: 表不存在
+            PathError: 表不存在。
+
+        Examples:
+            >>> store.get_table_info("stocks")
+            {'name': 'stocks', 'type': 'simple', 'columns': ['date', 'symbol', 'price'], ...}
         """
         if not self.has(tb_name):
             raise PathError(f"Table {tb_name} does not exist")
 
-        metadata = self._load_metadata(tb_name)
-        if metadata:
-            return metadata
-
-        tbpath = self.tb_path(tb_name)
-        df = self.read(tb_name)
+        tbpath = self.base_path.joinpath(*tb_name.split("/"))
+        df = self.read(tb_name).collect()
 
         is_partitioned = self._is_partitioned_table(tb_name)
         partitions = self._get_partition_columns(tb_name) if is_partitioned else None
 
-        info = {
+        return {
             "name": tb_name,
             "type": "partitioned" if is_partitioned else "simple",
             "columns": list(df.columns),
@@ -236,22 +245,22 @@ class LocalStore:
             "updated_at": datetime.fromtimestamp(tbpath.stat().st_mtime).isoformat(),
         }
 
-        info["version"] = self._compute_version(info)
-        return info
-
     def delete_table(self, tb_name: str) -> None:
         """
         删除表。
 
         Args:
-            tb_name: 表名
+            tb_name: 表名。
 
         Raises:
-            PathError: 表不存在
-            FileOperationError: 删除失败
+            PathError: 表不存在。
+            FileOperationError: 删除失败。
+
+        Examples:
+            >>> store.delete_table("old_table")
         """
         try:
-            tbpath = self.tb_path(tb_name)
+            tbpath = self.base_path.joinpath(*tb_name.split("/"))
             if not tbpath.exists():
                 raise PathError(f"Table {tb_name} does not exist")
 
@@ -266,16 +275,19 @@ class LocalStore:
         重命名表。
 
         Args:
-            old_name: 旧表名
-            new_name: 新表名
+            old_name: 旧表名。
+            new_name: 新表名。
 
         Raises:
-            PathError: 表不存在或新表名已存在
-            FileOperationError: 重命名失败
+            PathError: 表不存在或新表名已存在。
+            FileOperationError: 重命名失败。
+
+        Examples:
+            >>> store.rename_table("old_table", "new_table")
         """
         try:
-            old_path = self.tb_path(old_name)
-            new_path = self.tb_path(new_name)
+            old_path = self.base_path.joinpath(*old_name.split("/"))
+            new_path = self.base_path.joinpath(*new_name.split("/"))
 
             if not old_path.exists():
                 raise PathError(f"Table {old_name} does not exist")
@@ -295,16 +307,19 @@ class LocalStore:
         复制表。
 
         Args:
-            src_name: 源表名
-            dst_name: 目标表名
+            src_name: 源表名。
+            dst_name: 目标表名。
 
         Raises:
-            PathError: 源表不存在或目标表已存在
-            FileOperationError: 复制失败
+            PathError: 源表不存在或目标表已存在。
+            FileOperationError: 复制失败。
+
+        Examples:
+            >>> store.copy_table("users", "users_backup")
         """
         try:
-            src_path = self.tb_path(src_name)
-            dst_path = self.tb_path(dst_name)
+            src_path = self.base_path.joinpath(*src_name.split("/"))
+            dst_path = self.base_path.joinpath(*dst_name.split("/"))
 
             if not src_path.exists():
                 raise PathError(f"Table {src_name} does not exist")
@@ -323,21 +338,24 @@ class LocalStore:
         """
         优化表（合并小文件）。
 
+        自动检测分区列并保持分区结构。
+
         Args:
-            tb_name: 表名
+            tb_name: 表名。
 
         Raises:
-            PathError: 表不存在
-            FileOperationError: 优化失败
+            PathError: 表不存在。
+            FileOperationError: 优化失败。
+
+        Examples:
+            >>> store.optimize_table("fragmented_table")
         """
         try:
             if not self.has(tb_name):
                 raise PathError(f"Table {tb_name} does not exist")
 
-            metadata = self._load_metadata(tb_name)
-            partitions = metadata.get("partitions") if metadata else None
-
-            df = self.read(tb_name)
+            partitions = self._get_partition_columns(tb_name) or None
+            df = self.read(tb_name).collect()
             self.put(df, tb_name, partitions=partitions)
         except Exception as e:
             if isinstance(e, PathError):
@@ -351,13 +369,14 @@ class LocalStore:
         检查表完整性。
 
         Args:
-            tb_name: 表名
+            tb_name: 表名。
 
         Returns:
-            bool: 表是否完整
+            bool: 表是否完整可读。
 
-        Raises:
-            PathError: 表不存在
+        Examples:
+            >>> store.check_table("stocks")
+            True
         """
         try:
             if not self.has(tb_name):
@@ -368,98 +387,27 @@ class LocalStore:
         except Exception:
             return False
 
-    def _update_metadata(
-        self, tb_name: str, df: pl.DataFrame, partitions: list[str] | None
-    ) -> None:
-        """
-        更新表元数据。
-
-        Args:
-            tb_name: 表名
-            df: DataFrame
-            partitions: 分区列名列表
-        """
-        metadata_path = self.metadata_path(tb_name)
-
-        now = datetime.now().isoformat()
-
-        existing_metadata = self._load_metadata(tb_name)
-        created_at = (
-            existing_metadata.get("created_at", now) if existing_metadata else now
-        )
-
-        is_partitioned = partitions is not None
-        info = {
-            "name": tb_name,
-            "type": "partitioned" if is_partitioned else "simple",
-            "columns": list(df.columns),
-            "dtypes": {
-                col: str(dtype)
-                for col, dtype in zip(df.columns, df.dtypes, strict=True)
-            },
-            "rows": len(df),
-            "partitions": partitions,
-            "created_at": created_at,
-            "updated_at": now,
-        }
-
-        info["version"] = self._compute_version(info)
-
-        with open(metadata_path, "w", encoding="utf-8") as f:
-            json.dump(info, f, indent=2, ensure_ascii=False)
-
-    def _load_metadata(self, tb_name: str) -> dict[str, Any] | None:
-        """
-        加载表元数据。
-
-        Args:
-            tb_name: 表名
-
-        Returns:
-            dict[str, Any] | None: 元数据字典，如果不存在返回None
-        """
-        metadata_path = self.metadata_path(tb_name)
-        if not metadata_path.exists():
-            return None
-
-        with open(metadata_path, encoding="utf-8") as f:
-            return json.load(f)
-
-    def _compute_version(self, info: dict[str, Any]) -> str:
-        """
-        计算数据版本（基于元数据）。
-
-        Args:
-            info: 元数据字典
-
-        Returns:
-            str: 版本号
-        """
-        rows = info.get("rows", 0)
-        col_count = len(info.get("columns", []))
-        updated_at = info.get("updated_at", datetime.now().isoformat())
-
-        timestamp = updated_at.replace("-", "").replace(":", "").replace("T", "")[:14]
-        return f"{rows}_{col_count}_{timestamp}"
-
     def get_actual_mtime(self, tb_name: str) -> str:
         """
-        获取表数据的实际修改时间（遍历所有 Parquet 文件）。
+        获取表数据的实际修改时间。
 
-        不依赖 meta.json，直接扫描文件系统获取最新修改时间。
-        用于验证 meta.json 的准确性或诊断数据变更。
+        遍历所有Parquet文件获取最新修改时间。
 
         Args:
-            tb_name: 表名
+            tb_name: 表名。
 
         Returns:
-            str: ISO 格式的时间戳
+            str: ISO格式时间戳。
 
         Raises:
-            PathError: 表不存在
-            FileOperationError: 表为空或无 Parquet 文件
+            PathError: 表不存在。
+            FileOperationError: 无Parquet文件。
+
+        Examples:
+            >>> store.get_actual_mtime("stocks")
+            '2024-03-16T12:34:56.789012'
         """
-        tbpath = self.tb_path(tb_name)
+        tbpath = self.base_path.joinpath(*tb_name.split("/"))
         if not tbpath.exists():
             raise PathError(f"Table {tb_name} does not exist")
 
