@@ -67,25 +67,21 @@ factor_df = df.with_columns(
 ).filter(pl.col("volume") > 0)
 ```
 
-### 3. 因子分析 (Polens)
+### 3. 因子分析 (Rack + Polens)
 
-使用 Polens 进行专业因子分析，包括 IC 评估、分层回测、换手率等：
+使用 Rack 整合数据，Polens 进行专业因子分析：
 
 ```python
+from alphamaster.rack import Rack
 from alphamaster.polens import FactorAnalyzer
-import polars as pl
 
-# 准备数据（必须包含列：date, asset, value, vwap, adj_factor）
-factor_df = pl.DataFrame({
-    "date": [...],
-    "asset": [...],
-    "value": [...],      # 因子值
-    "vwap": [...],       # 成交量加权均价
-    "adj_factor": [...],  # 复权因子
-})
+# Rack: 加载行情数据并整合因子
+rack = Rack()
+rack.load_prices("2023-01-01", "2023-12-31")  # 加载行情
+rack.set_factor(factor_df)                      # 设置因子
 
-# 创建分析器并执行分析
-analyzer = FactorAnalyzer(factor_df, group_col="industry")
+# Polens: 因子分析
+analyzer = FactorAnalyzer(rack.get_data(), group_col="industry")
 analyzer.preprocess(periods=[1, 5, 10], quantiles=5)
 analyzer.analyze()
 
@@ -99,6 +95,8 @@ analyzer.plot.quantile_returns() # 分层收益图
 analyzer.plot.factor_stability() # 因子稳定性
 ```
 
+> **提示**: Rack 会自动缓存行情数据，更换因子时无需重新加载。
+
 ---
 
 ## 核心模块
@@ -107,6 +105,7 @@ analyzer.plot.factor_stability() # 因子稳定性
 |------|------|
 | `datacenter` | 数据访问层，统一获取行情和基础信息 |
 | `tool_box.xcals` | 交易日历工具 |
+| `alphamaster.rack` | 数据整合器，加载行情并整合因子数据 |
 | `alphamaster.polens` | 因子分析工具（IC、分层收益、换手率等） |
 
 ---
