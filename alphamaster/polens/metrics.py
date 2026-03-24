@@ -47,7 +47,9 @@ class FactorMetrics:
         return df.group_by("date").agg(exprs).sort("date")
 
     @staticmethod
-    def calc_ic_summary(ic_df: pl.DataFrame, periods: list[int]) -> dict[str, dict[str, float]]:
+    def calc_ic_summary(
+        ic_df: pl.DataFrame, periods: list[int]
+    ) -> dict[str, dict[str, float]]:
         """计算 IC 的统计指标。
 
         计算 RankIC 的均值、标准差、ICIR、t统计量和p值。
@@ -132,7 +134,11 @@ class FactorMetrics:
 
         # 计算时间平均（缺失值填 0）
         mean_exprs = [
-            pl.col(f"rank_ic_{n}d").fill_nan(0).fill_null(0).mean().alias(f"rank_ic_{n}d")
+            pl.col(f"rank_ic_{n}d")
+            .fill_nan(0)
+            .fill_null(0)
+            .mean()
+            .alias(f"rank_ic_{n}d")
             for n in periods
         ]
 
@@ -177,8 +183,7 @@ class FactorMetrics:
         # Index 补全：构建完整的日期×分位数 Index
         dates = res.select("date").unique()
         q_range = pl.DataFrame(
-            {"quantile": list(range(1, quantiles + 1))},
-            schema={"quantile": pl.Int32}
+            {"quantile": list(range(1, quantiles + 1))}, schema={"quantile": pl.Int32}
         )
         full_index = dates.join(q_range, how="cross")
 
@@ -205,10 +210,7 @@ class FactorMetrics:
         """
         # 获取前一期分位数
         df = df.with_columns(
-            pl.col(quantile_col)
-            .shift(1)
-            .over("asset")
-            .alias("prev_quantile")
+            pl.col(quantile_col).shift(1).over("asset").alias("prev_quantile")
         )
 
         # 计算换手率
@@ -245,9 +247,5 @@ class FactorMetrics:
             .with_columns(
                 pl.col(factor_col).shift(lag).over("asset").alias("factor_lag")
             )
-            .select(
-                pl.corr(pl.col(factor_col), pl.col("factor_lag")).alias("autocorr")
-            )
+            .select(pl.corr(pl.col(factor_col), pl.col("factor_lag")).alias("autocorr"))
         )
-
-
