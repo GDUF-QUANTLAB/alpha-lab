@@ -184,7 +184,7 @@ class Pool:
         @functools.wraps(fn)
         def collect(**kwargs) -> DelayedFunction:
             """收集任务"""
-            job = delay(fn)(**kwargs)
+            job = delay(fn).bind(**kwargs)
 
             if self._job_map.get(job_name) is None:
                 self._job_map[job_name] = [job]
