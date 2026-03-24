@@ -1,7 +1,8 @@
 """可视化模块测试。"""
 
 import matplotlib
-matplotlib.use('Agg')
+
+matplotlib.use("Agg")
 
 from unittest.mock import MagicMock
 
