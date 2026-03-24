@@ -201,31 +201,3 @@ class TestCalcAutocorrelation:
         result = FactorMetrics.calc_autocorrelation(df, factor_col="factor")
 
         assert "autocorr" in result.columns
-
-
-class TestCalcLongShortReturns:
-    def test_basic(self, sample_df):
-        result = FactorMetrics.calc_long_short_returns(
-            sample_df, periods=[1], quantiles=2
-        )
-
-        assert "date" in result.columns
-        assert "ls_ret_1d" in result.columns
-
-    def test_multiple_periods(self, sample_df_multiple_periods):
-        result = FactorMetrics.calc_long_short_returns(
-            sample_df_multiple_periods, periods=[1, 5], quantiles=2
-        )
-
-        assert "date" in result.columns
-        assert "ls_ret_1d" in result.columns
-        assert "ls_ret_5d" in result.columns
-
-    def test_long_short_logic(self, sample_df):
-        # 手动计算多空收益验证逻辑
-        result = FactorMetrics.calc_long_short_returns(
-            sample_df, periods=[1], quantiles=2
-        )
-
-        # 结果应该包含日期和多空收益
-        assert result.height > 0

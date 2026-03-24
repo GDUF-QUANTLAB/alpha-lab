@@ -232,7 +232,9 @@ class FactorMetrics:
     def calc_autocorrelation(
         df: pl.DataFrame, factor_col: str = "value", lag: int = 1
     ) -> pl.DataFrame:
-        """计算因子自相关性。
+        """计算因子自相关性（按日期）。
+
+        计算每个日期截面内，因子值与其滞后值的相关性。
 
         Args:
             df: 包含 value 列的 DataFrame
@@ -240,12 +242,15 @@ class FactorMetrics:
             lag: 滞后期数
 
         Returns:
-            自相关系数
+            每日自相关系数，包含 date 和 autocorr 列
         """
         return (
             df.sort(["date", "asset"])
             .with_columns(
                 pl.col(factor_col).shift(lag).over("asset").alias("factor_lag")
             )
-            .select(pl.corr(pl.col(factor_col), pl.col("factor_lag")).alias("autocorr"))
+            .filter(pl.col("factor_lag").is_not_null())
+            .group_by("date")
+            .agg(pl.corr(pl.col(factor_col), pl.col("factor_lag")).alias("autocorr"))
+            .sort("date")
         )

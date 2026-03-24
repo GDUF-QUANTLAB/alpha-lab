@@ -86,7 +86,7 @@ def mock_analyzer():
     analyzer.autocorr_df = pl.DataFrame(
         {
             "date": dates,
-            "rank_autocorr": np.random.randn(len(dates)) * 0.1 + 0.3,
+            "autocorr": np.random.randn(len(dates)) * 0.1 + 0.3,
         }
     )
 
