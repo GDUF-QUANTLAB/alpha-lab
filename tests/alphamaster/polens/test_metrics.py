@@ -11,36 +11,42 @@ from alphamaster.polens import FactorMetrics
 
 @pytest.fixture
 def sample_df():
-    return pl.DataFrame({
-        "date": ["2023-01-01", "2023-01-01", "2023-01-02", "2023-01-02"],
-        "asset": ["A", "B", "A", "B"],
-        "value": [0.1, 0.2, 0.15, 0.25],
-        "ret_1d": [0.01, 0.02, 0.015, 0.025],
-        "quantile": [1, 2, 1, 2],
-    }).with_columns(pl.col("date").str.to_date())
+    return pl.DataFrame(
+        {
+            "date": ["2023-01-01", "2023-01-01", "2023-01-02", "2023-01-02"],
+            "asset": ["A", "B", "A", "B"],
+            "value": [0.1, 0.2, 0.15, 0.25],
+            "ret_1d": [0.01, 0.02, 0.015, 0.025],
+            "quantile": [1, 2, 1, 2],
+        }
+    ).with_columns(pl.col("date").str.to_date())
 
 
 @pytest.fixture
 def sample_df_multiple_periods():
-    return pl.DataFrame({
-        "date": ["2023-01-01", "2023-01-01", "2023-01-02", "2023-01-02"],
-        "asset": ["A", "B", "A", "B"],
-        "value": [0.1, 0.2, 0.15, 0.25],
-        "ret_1d": [0.01, 0.02, 0.015, 0.025],
-        "ret_5d": [0.05, 0.10, 0.075, 0.125],
-        "quantile": [1, 2, 1, 2],
-    }).with_columns(pl.col("date").str.to_date())
+    return pl.DataFrame(
+        {
+            "date": ["2023-01-01", "2023-01-01", "2023-01-02", "2023-01-02"],
+            "asset": ["A", "B", "A", "B"],
+            "value": [0.1, 0.2, 0.15, 0.25],
+            "ret_1d": [0.01, 0.02, 0.015, 0.025],
+            "ret_5d": [0.05, 0.10, 0.075, 0.125],
+            "quantile": [1, 2, 1, 2],
+        }
+    ).with_columns(pl.col("date").str.to_date())
 
 
 @pytest.fixture
 def sample_df_with_group():
-    return pl.DataFrame({
-        "date": ["2023-01-01", "2023-01-01", "2023-01-01", "2023-01-01"],
-        "asset": ["A", "B", "C", "D"],
-        "value": [0.1, 0.2, 0.15, 0.25],
-        "ret_1d": [0.01, 0.02, 0.015, 0.025],
-        "industry": ["Tech", "Tech", "Finance", "Finance"],
-    }).with_columns(pl.col("date").str.to_date())
+    return pl.DataFrame(
+        {
+            "date": ["2023-01-01", "2023-01-01", "2023-01-01", "2023-01-01"],
+            "asset": ["A", "B", "C", "D"],
+            "value": [0.1, 0.2, 0.15, 0.25],
+            "ret_1d": [0.01, 0.02, 0.015, 0.025],
+            "industry": ["Tech", "Tech", "Finance", "Finance"],
+        }
+    ).with_columns(pl.col("date").str.to_date())
 
 
 class TestCalcIC:
@@ -90,10 +96,12 @@ class TestCalcICSummary:
 
     def test_insufficient_data(self):
         # 只有一行数据，无法计算 std
-        ic_df = pl.DataFrame({
-            "date": ["2023-01-01"],
-            "rank_ic_1d": [0.5],
-        }).with_columns(pl.col("date").str.to_date())
+        ic_df = pl.DataFrame(
+            {
+                "date": ["2023-01-01"],
+                "rank_ic_1d": [0.5],
+            }
+        ).with_columns(pl.col("date").str.to_date())
 
         result = FactorMetrics.calc_ic_summary(ic_df, periods=[1])
 

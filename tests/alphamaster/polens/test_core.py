@@ -10,37 +10,64 @@ from alphamaster.polens import FactorAnalyzer
 
 @pytest.fixture
 def sample_df():
-    return pl.DataFrame({
-        "date": ["2023-01-01", "2023-01-01", "2023-01-02", "2023-01-02", "2023-01-03", "2023-01-03"],
-        "asset": ["A", "B", "A", "B", "A", "B"],
-        "value": [0.1, 0.2, 0.15, 0.25, 0.12, 0.22],
-        "vwap": [100.0, 50.0, 101.0, 51.0, 102.0, 52.0],
-        "adj_factor": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
-    }).with_columns(pl.col("date").str.to_date())
+    return pl.DataFrame(
+        {
+            "date": [
+                "2023-01-01",
+                "2023-01-01",
+                "2023-01-02",
+                "2023-01-02",
+                "2023-01-03",
+                "2023-01-03",
+            ],
+            "asset": ["A", "B", "A", "B", "A", "B"],
+            "value": [0.1, 0.2, 0.15, 0.25, 0.12, 0.22],
+            "vwap": [100.0, 50.0, 101.0, 51.0, 102.0, 52.0],
+            "adj_factor": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+        }
+    ).with_columns(pl.col("date").str.to_date())
 
 
 @pytest.fixture
 def sample_df_with_group():
-    return pl.DataFrame({
-        "date": ["2023-01-01", "2023-01-01", "2023-01-02", "2023-01-02", "2023-01-03", "2023-01-03"],
-        "asset": ["A", "B", "A", "B", "A", "B"],
-        "value": [0.1, 0.2, 0.15, 0.25, 0.12, 0.22],
-        "vwap": [100.0, 50.0, 101.0, 51.0, 102.0, 52.0],
-        "adj_factor": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
-        "industry": ["Tech", "Finance", "Tech", "Finance", "Tech", "Finance"],
-    }).with_columns(pl.col("date").str.to_date())
+    return pl.DataFrame(
+        {
+            "date": [
+                "2023-01-01",
+                "2023-01-01",
+                "2023-01-02",
+                "2023-01-02",
+                "2023-01-03",
+                "2023-01-03",
+            ],
+            "asset": ["A", "B", "A", "B", "A", "B"],
+            "value": [0.1, 0.2, 0.15, 0.25, 0.12, 0.22],
+            "vwap": [100.0, 50.0, 101.0, 51.0, 102.0, 52.0],
+            "adj_factor": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+            "industry": ["Tech", "Finance", "Tech", "Finance", "Tech", "Finance"],
+        }
+    ).with_columns(pl.col("date").str.to_date())
 
 
 @pytest.fixture
 def sample_df_with_avail():
-    return pl.DataFrame({
-        "date": ["2023-01-01", "2023-01-01", "2023-01-02", "2023-01-02", "2023-01-03", "2023-01-03"],
-        "asset": ["A", "B", "A", "B", "A", "B"],
-        "value": [0.1, 0.2, 0.15, 0.25, 0.12, 0.22],
-        "vwap": [100.0, 50.0, 101.0, 51.0, 102.0, 52.0],
-        "adj_factor": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
-        "avail": [True, True, True, False, True, True],
-    }).with_columns(pl.col("date").str.to_date())
+    return pl.DataFrame(
+        {
+            "date": [
+                "2023-01-01",
+                "2023-01-01",
+                "2023-01-02",
+                "2023-01-02",
+                "2023-01-03",
+                "2023-01-03",
+            ],
+            "asset": ["A", "B", "A", "B", "A", "B"],
+            "value": [0.1, 0.2, 0.15, 0.25, 0.12, 0.22],
+            "vwap": [100.0, 50.0, 101.0, 51.0, 102.0, 52.0],
+            "adj_factor": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+            "avail": [True, True, True, False, True, True],
+        }
+    ).with_columns(pl.col("date").str.to_date())
 
 
 class TestFactorAnalyzer:

@@ -23,20 +23,24 @@ def mock_analyzer():
         pl.date(2023, 1, 1), pl.date(2023, 3, 31), interval="1d", eager=True
     )
     np.random.seed(42)
-    analyzer.ic_df = pl.DataFrame({
-        "date": dates,
-        "ic_1d": np.random.randn(len(dates)) * 0.05,
-        "rank_ic_1d": np.random.randn(len(dates)) * 0.05,
-        "ic_5d": np.random.randn(len(dates)) * 0.03,
-        "rank_ic_5d": np.random.randn(len(dates)) * 0.03,
-    })
+    analyzer.ic_df = pl.DataFrame(
+        {
+            "date": dates,
+            "ic_1d": np.random.randn(len(dates)) * 0.05,
+            "rank_ic_1d": np.random.randn(len(dates)) * 0.05,
+            "ic_5d": np.random.randn(len(dates)) * 0.03,
+            "rank_ic_5d": np.random.randn(len(dates)) * 0.03,
+        }
+    )
 
     # 模拟分组 IC 数据
-    analyzer.ic_by_group_df = pl.DataFrame({
-        "industry": ["Tech", "Finance", "Health"],
-        "rank_ic_1d": [0.05, 0.03, 0.04],
-        "rank_ic_5d": [0.04, 0.02, 0.03],
-    })
+    analyzer.ic_by_group_df = pl.DataFrame(
+        {
+            "industry": ["Tech", "Finance", "Health"],
+            "rank_ic_1d": [0.05, 0.03, 0.04],
+            "rank_ic_5d": [0.04, 0.02, 0.03],
+        }
+    )
 
     # 模拟分层收益数据
     quantile_dates = []
@@ -48,11 +52,13 @@ def mock_analyzer():
             quantiles.append(q)
             ret_1d.append(0.001 + q * 0.0002 + np.random.randn() * 0.005)
 
-    quantile_df = pl.DataFrame({
-        "date": quantile_dates,
-        "quantile": quantiles,
-        "ret_1d": ret_1d,
-    })
+    quantile_df = pl.DataFrame(
+        {
+            "date": quantile_dates,
+            "quantile": quantiles,
+            "ret_1d": ret_1d,
+        }
+    )
 
     analyzer.quantile_ret_df = {1: quantile_df, 5: quantile_df}
 
@@ -67,18 +73,22 @@ def mock_analyzer():
             turnover_values.append(0.2 + np.random.rand() * 0.3)
 
     analyzer.turnover_df = {
-        1: pl.DataFrame({
-            "date": turnover_dates,
-            "quantile": turnover_quantiles,
-            "turnover": turnover_values,
-        })
+        1: pl.DataFrame(
+            {
+                "date": turnover_dates,
+                "quantile": turnover_quantiles,
+                "turnover": turnover_values,
+            }
+        )
     }
 
     # 模拟自相关数据
-    analyzer.autocorr_df = pl.DataFrame({
-        "date": dates,
-        "rank_autocorr": np.random.randn(len(dates)) * 0.1 + 0.3,
-    })
+    analyzer.autocorr_df = pl.DataFrame(
+        {
+            "date": dates,
+            "rank_autocorr": np.random.randn(len(dates)) * 0.1 + 0.3,
+        }
+    )
 
     return analyzer
 
