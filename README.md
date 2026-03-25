@@ -90,9 +90,9 @@ stats = analyzer.summary_stats()
 print(stats)
 
 # 绘制分析图表
-analyzer.plot.ic_ts()           # IC 时序图
-analyzer.plot.quantile_returns() # 分层收益图
-analyzer.plot.factor_stability() # 因子稳定性
+analyzer.plot("ic_ts")           # IC 时序图
+analyzer.plot("quantile_cum")    # 分层累积收益
+analyzer.plot("stability")       # 因子稳定性
 ```
 
 > **提示**: Rack 会自动缓存行情数据，更换因子时无需重新加载。
