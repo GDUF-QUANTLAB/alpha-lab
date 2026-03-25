@@ -11,7 +11,6 @@ __all__ = [
     "MySQLClient",
     "ClickHouseClient",
     "read_mysql",
-    "write_mysql",
     "read_ck",
 ]
 

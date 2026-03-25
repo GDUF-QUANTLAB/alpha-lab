@@ -12,7 +12,13 @@ Examples:
     >>> df = store.read("stocks").collect()
 """
 
-from .api import sql
+from .api import (
+    has,
+    list_tables,
+    put,
+    sql,
+    tb_path,
+)
 from .clients import (
     read_ck,
     read_mysql,
@@ -20,4 +26,14 @@ from .clients import (
 from .config import get_settings
 from .local import LocalStore
 
-__all__ = ["read_ck", "read_mysql", "LocalStore", "get_settings", "sql"]
+__all__ = [
+    "read_ck",
+    "read_mysql",
+    "LocalStore",
+    "get_settings",
+    "sql",
+    "has",
+    "list_tables",
+    "put",
+    "tb_path",
+]

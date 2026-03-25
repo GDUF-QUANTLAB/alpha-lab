@@ -16,8 +16,6 @@ import polars as pl
 from .config import get_settings
 from .exceptions import FileOperationError, PathError
 
-DB_PATH = get_settings().get("paths.store")
-
 
 class LocalStore:
     """
@@ -36,13 +34,12 @@ class LocalStore:
     """
 
     def __init__(self, base_path: Path | str | None = None) -> None:
-        self.base_path = Path(DB_PATH)
         if base_path is None:
-            return
-        if isinstance(base_path, str):
+            self.base_path = Path(get_settings().get("paths.store"))
+        elif isinstance(base_path, str):
             self.base_path = Path(base_path)
-            return
-        self.base_path = base_path
+        else:
+            self.base_path = base_path
 
     def _is_partitioned_table(self, tb_name: str) -> bool:
         """
@@ -323,7 +320,7 @@ class LocalStore:
 
             if not src_path.exists():
                 raise PathError(f"Table {src_name} does not exist")
-            if dst_path.exists():
+            if dst_path.exists() and dst_path.is_dir() and any(dst_path.iterdir()):
                 raise PathError(f"Table {dst_name} already exists")
 
             shutil.copytree(src_path, dst_path)
