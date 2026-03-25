@@ -16,6 +16,7 @@ from .api import (
     has,
     list_tables,
     put,
+    read,
     sql,
     tb_path,
 )
@@ -35,5 +36,6 @@ __all__ = [
     "has",
     "list_tables",
     "put",
+    "read",
     "tb_path",
 ]

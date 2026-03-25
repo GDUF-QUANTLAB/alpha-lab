@@ -52,7 +52,12 @@ def put(
 
 def has(path: str) -> bool:
     """判断路径是否存在"""
-    return tb_path(path).exists()
+    return LocalStore().has(path)
+
+
+def read(path: str) -> pl.DataFrame | pl.LazyFrame:
+    """读取数据"""
+    return LocalStore().read(path)
 
 
 def sql(query: str, lazy: bool = True) -> pl.DataFrame | pl.LazyFrame:
