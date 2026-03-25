@@ -37,10 +37,9 @@ def get_vwap(date: str, beg_time: str, end_time: str) -> pl.LazyFrame:
 def update_vwap(date: str, beg_time: str, end_time: str) -> None:
     _temp = str(f"{beg_time}_{end_time}").replace(":", "")
     pth = f"cache/vwap/{_temp}/date={date}/data.parquet"
-    db = bs.LocalStore()
-    if not db.has(pth):
+    if not bs.has(pth):
         df = get_vwap(date, beg_time, end_time)
-        db.put(df, pth)
+        bs.put(df, pth)
 
 
 def get_batch_vwap(
@@ -48,15 +47,16 @@ def get_batch_vwap(
 ) -> pl.LazyFrame:
     _temp = str(f"{beg_time}_{end_time}").replace(":", "")
     all_days = xcals.get_tradingdays(beg_date, end_date)
-    exits_days = (
-        bs.LocalStore()
-        .read(f"cache/vwap/{_temp}")
-        .select(pl.col("date").unique())
-        .collect()["date"]
-        .cast(str)
-        .to_list()
-    )
-    delta = set(all_days) - set(exits_days)
+    exist_days = []
+    if bs.has(f"cache/vwap/{_temp}"):
+        exist_days = (
+            bs.read(f"cache/vwap/{_temp}")
+            .select(pl.col("date").unique())
+            .collect()["date"]
+            .cast(str)
+            .to_list()
+        )
+    delta = set(all_days) - set(exist_days)
     if len(delta) > 0:
         with ygo.Pool() as go:
             for d in delta:
@@ -64,7 +64,7 @@ def get_batch_vwap(
                     date=d, beg_time=beg_time, end_time=end_time
                 )
             go.do()
-    return bs.LocalStore().read(f"cache/vwap/{_temp}")
+    return bs.read(f"cache/vwap/{_temp}")
 
 
 def get_adj_factor(target_date: str) -> pl.DataFrame:
@@ -73,33 +73,29 @@ def get_adj_factor(target_date: str) -> pl.DataFrame:
 
 def update_adj_factor(date: str) -> None:
     pth = f"cache/adj_factor/date={date}/data.parquet"
-    db = bs.LocalStore()
-    if not db.has(pth):
+    if not bs.has(pth):
         df = get_adj_factor(date)
-        db.put(df, pth)
+        bs.put(df, pth)
 
 
 def get_batch_adj_factor(beg_date: str, end_date: str) -> pl.LazyFrame:
     all_days = xcals.get_tradingdays(beg_date, end_date)
-    db = bs.LocalStore()
-    db.base_path.mkdir(parents=True, exist_ok=True)
-    try:
+    exist_days = []
+    if bs.has("cache/adj_factor"):
         exist_days = (
-            db.read("cache/adj_factor")
+            bs.read("cache/adj_factor")
             .select(pl.col("date").unique())
             .collect()["date"]
             .cast(str)
             .to_list()
         )
-    except Exception:
-        exist_days = []
     delta = set(all_days) - set(exist_days)
     if len(delta) > 0:
         with ygo.Pool() as go:
             for d in delta:
                 go.submit(update_adj_factor, "UpdateAdjFactor")(date=d)
             go.do()
-    return db.read("cache/adj_factor")
+    return bs.read("cache/adj_factor")
 
 
 def get_all_prices(
@@ -115,6 +111,15 @@ def get_all_prices(
         "close",
         "prev_close",
     )
+
+    idx = (
+        other_prices.select("asset")
+        .unique()
+        .join(other_prices.select("date").unique(), how="cross")
+        .sort("date", "asset")
+    )
+
+    other_prices = idx.join(other_prices, on=["asset", "date"], how="left")
 
     vwap_df = get_batch_vwap(beg_date, end_date, beg_time, end_time)
 
