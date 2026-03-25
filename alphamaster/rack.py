@@ -153,11 +153,24 @@ class Rack:
         if self._prices_df is None:
             raise RuntimeError("请先调用 load_prices() 加载行情数据")
 
-        self._merged_df = self._factor_df.join(
-            self._prices_df,
-            on=["date", "asset"],
-            how="inner",
-        ).sort("date", "asset")
+        self._merged_df = (
+            self._prices_df.join(
+                self._factor_df,
+                on=["date", "asset"],
+                how="left",
+            )
+            .sort("date", "asset")
+            .with_columns(
+                pl.col("limit_up").forward_fill().over("asset", order_by="date"),
+                pl.col("limit_down").forward_fill().over("asset", order_by="date"),
+                pl.col("close").forward_fill().over("asset", order_by="date"),
+                pl.col("prev_close").forward_fill().over("asset", order_by="date"),
+                pl.col("adj_factor")
+                .forward_fill()
+                .over("asset", order_by="date")
+                .fill_null(1.0),
+            )
+        )
 
         return self._merged_df
 
