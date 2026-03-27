@@ -1,11 +1,10 @@
 from .basic import (
+    accounting,
     adj_factors,
     asset,
     capital,
     codes,
-    financial_index,
     industry,
-    mainshlistnew,
     shares,
     special_trades,
 )
@@ -17,7 +16,6 @@ __all__ = [
     "special_trades",
     "adj_factors",
     "capital",
-    "mainshlistnew",
-    "financial_index",
+    "accounting",
     "asset",
 ]

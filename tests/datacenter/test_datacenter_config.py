@@ -112,11 +112,9 @@ def test_get_config_all_inform_data():
         DataType.SHARES,
         DataType.INDUSTRY,
         DataType.ADJFAC,
-        DataType.EX_RATING,
         DataType.IDX_COMP_W,
         DataType.CAPITAL,
-        DataType.MAINSHLIST,
-        DataType.FINANCIAL_INDEX,
+        DataType.ACCOUNTING,
     ]
 
     for dt in inform_datatypes:

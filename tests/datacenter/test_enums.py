@@ -23,11 +23,9 @@ def test_datatype_enum():
     assert DataType.SHARES.value == "shares"
     assert DataType.INDUSTRY.value == "industry"
     assert DataType.ADJFAC.value == "adj_factor"
-    assert DataType.EX_RATING.value == "ex_rating"
     assert DataType.IDX_COMP_W.value == "index_component_weight"
     assert DataType.CAPITAL.value == "capital"
-    assert DataType.MAINSHLIST.value == "mainshlistnew"
-    assert DataType.FINANCIAL_INDEX.value == "financial_index"
+    assert DataType.ACCOUNTING.value == "accounting"
 
 
 def test_enum_comparison():
@@ -45,5 +43,5 @@ def test_enum_iteration():
     assert Instrument.STOCK in instruments
 
     datatypes = list(DataType)
-    assert len(datatypes) == 14
+    assert len(datatypes) == 12
     assert DataType.KLINE_DAY in datatypes
