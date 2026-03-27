@@ -92,11 +92,6 @@ DATA_REGISTRY = {
         local="jydata/adj_factor",
         description="股票复权因子",
     ),
-    # Inform Data - EX_RATING
-    (Instrument.STOCK, DataType.EX_RATING): DataConfig(
-        local="jydata/c_ex_stock_rating",
-        description="股票评级信息",
-    ),
     # Inform Data - IDX_COMP_W
     (Instrument.STOCK, DataType.IDX_COMP_W): DataConfig(
         local="jydata/components_weight",
@@ -107,15 +102,10 @@ DATA_REGISTRY = {
         local="jydata/lc_capital",
         description="股票资本结构",
     ),
-    # Inform Data - MAINSHLIST
-    (Instrument.STOCK, DataType.MAINSHLIST): DataConfig(
-        local="jydata/lc_mainshlistnew",
-        description="股票上市信息",
-    ),
-    # Inform Data - FINANCIAL_INDEX
-    (Instrument.STOCK, DataType.FINANCIAL_INDEX): DataConfig(
-        local="jydata/lc_qfinancialindexnew",
-        description="股票财务指标",
+    # Inform Data - MAIN_ACCOUNT
+    (Instrument.STOCK, DataType.ACCOUNTING): DataConfig(
+        local="jydata/lc_maindatanew",
+        description="报告期主要会计数据",
     ),
 }
 

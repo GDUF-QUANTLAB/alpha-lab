@@ -242,60 +242,30 @@ def adj_factors(date: str, instrument: Instrument = Instrument.STOCK) -> pl.Lazy
     ).select("asset", pl.col("AdjustingFactor").alias("adj_factor"))
 
 
-def mainshlistnew(date: str, instrument: Instrument = Instrument.STOCK) -> pl.LazyFrame:
+def accounting(date: str, instrument: Instrument = Instrument.STOCK):
     """
-    Reads listing info for stocks/indices/futures/convertible bonds on a specific date.
+    读取指定日期的股票/指数/期货/可转债的会计信息
 
-    Args:
-        date: Date string in YYYY-MM-DD format.
-        instrument: Financial instrument type. Defaults to Instrument.STOCK.
+    Parameters
+    ----------
+    date: str
+        要读取的日期，格式为YYYY-MM-DD
 
-    Returns:
-        pl.LazyFrame: A LazyFrame containing listing information.
-    """
-    d = get_data(instrument, DataType.MAINSHLIST)
-    return (
-        bs.sql(f"select SecuCode as asset, * from {d.local}")
-        .with_columns(
-            pl.col("InfoPublDate").str.to_date(),
-            pl.col("EndDate").str.to_date(),
-        )
-        .filter(pl.col("InfoPublDate") < xcals.to_date(date))
-        .filter(pl.col("asset").str.slice(0, 1).is_in(ASHARE_PREFIXES))
-        .filter(pl.col("InfoPublDate") == pl.col("InfoPublDate").max().over("asset"))
-        .sort("asset")
-    )
-
-
-def financial_index(
-    date: str,
     instrument: Instrument = Instrument.STOCK,
-    fields: list[str] | None = None,
-) -> pl.LazyFrame:
+
+    Returns
+    -------
+    pl.LazyFrame
+        包含指定日期该金融产品所有代码的会计信息的LazyFrame
     """
-    Reads financial index info for stocks/indices/futures/convertible bonds on a specific date.
-
-    Args:
-        date: Date string in YYYY-MM-DD format.
-        instrument: Financial instrument type. Defaults to Instrument.STOCK.
-        fields: List of fields to select. Defaults to None.
-
-    Returns:
-        pl.LazyFrame: A LazyFrame containing financial index information.
-    """
-    d = get_data(instrument, DataType.FINANCIAL_INDEX)
-
+    local_tb_name = get_data(instrument, datatype=DataType.ACCOUNTING).local
     return (
-        bs.sql(f"select SecuCode as asset, * from {d.local}")
-        .with_columns(
-            pl.col("InfoPublDate").str.to_date(),
-            pl.col("EndDate").str.to_date(),
-        )
+        bs.sql(f"select * from {local_tb_name}")
         .filter(
-            pl.col("InfoPublDate") < xcals.to_date(date),
-            pl.col("asset").str.slice(0, 1).is_in(ASHARE_PREFIXES),
             pl.col("Mark").is_in([1, 2]),
+            pl.col("InfoPublDate") <= pl.lit(date).str.to_date(),
         )
         .group_by("asset", "EndDate")
-        .agg(pl.all().sort_by("EndDate").last())
+        .agg(pl.all().sort_by("InfoPublDate").last())
+        .sort("asset", "EndDate")
     )
