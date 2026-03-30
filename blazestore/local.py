@@ -168,10 +168,6 @@ class LocalStore:
             if not tbpath.exists():
                 raise PathError(f"Path {path} does not exist")
 
-            parquet_files = list(tbpath.rglob("*.parquet"))
-            if not parquet_files:
-                raise FileOperationError(f"No parquet files found in {path}")
-
             is_partitioned = self._is_partitioned_table(path)
             if is_partitioned:
                 return pl.scan_parquet(tbpath / "**/*.parquet", hive_partitioning=True)
