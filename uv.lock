@@ -15,7 +15,6 @@ resolution-markers = [
 
 [[package]]
 name = "alpha-lab"
-version = "0.1.6"
 source = { editable = "." }
 dependencies = [
     { name = "clickhouse-driver" },

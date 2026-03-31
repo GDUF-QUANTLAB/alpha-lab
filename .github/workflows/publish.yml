@@ -3,7 +3,12 @@ name: Publish Release
 on:
   release:
     types: [published]
-  workflow_dispatch:  # 允许手动触发
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "发布版本号（例如 0.1.7 或 v0.1.7）"
+        required: true
+        type: string
 
 jobs:
   test:
@@ -38,16 +43,33 @@ jobs:
 
   build-and-publish:
     needs: test
-    if: always() && (needs.test.result == 'success' || needs.test.result == 'failure')
+    if: needs.test.result == 'success'
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Install uv
         uses: astral-sh/setup-uv@v4
         with:
           enable-cache: true
+
+      - name: Resolve publish version
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "release" ]]; then
+            raw="${{ github.event.release.tag_name }}"
+          else
+            raw="${{ github.event.inputs.version }}"
+          fi
+          version="${raw#v}"
+          if [[ -z "${version}" ]]; then
+            echo "Version is empty"
+            exit 1
+          fi
+          echo "SETUPTOOLS_SCM_PRETEND_VERSION=${version}" >> "$GITHUB_ENV"
 
       - name: Build package
         run: uv build --no-sources
