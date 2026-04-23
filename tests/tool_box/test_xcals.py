@@ -2,7 +2,7 @@ import datetime
 
 import pytest
 
-from tool_box.xcals import api
+from xcals import api
 
 
 def test_today():

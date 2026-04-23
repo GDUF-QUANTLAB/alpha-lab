@@ -17,7 +17,7 @@ else:
 def align_with_calendar(df: pl.DataFrame) -> pl.DataFrame:
     """与交易日历对齐，防止 shift 操作跳过非交易日。
 
-    如果 tool_box.xcals 不可用，则返回原 DataFrame。
+    如果 xcals 不可用，则返回原 DataFrame。
 
     Args:
         df: 包含 date, asset 的 DataFrame
@@ -26,10 +26,10 @@ def align_with_calendar(df: pl.DataFrame) -> pl.DataFrame:
         对齐后的 DataFrame
     """
     try:
-        from tool_box import xcals
+        import xcals
     except ImportError:
         warnings.warn(
-            "tool_box.xcals 不可用，交易日历对齐已跳过。"
+            "xcals 不可用，交易日历对齐已跳过。"
             "这可能导致 shift 操作跳过非交易日。",
             UserWarning,
             stacklevel=2,

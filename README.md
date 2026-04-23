@@ -27,7 +27,7 @@ pip install alpha-lab
 ```python
 import polars as pl
 import datacenter as dc
-from tool_box.xcals import api
+from xcals import api
 
 # 获取交易日列表
 trading_days = api.get_tradingdays("2023-01-01", "2023-01-31")
@@ -104,7 +104,7 @@ analyzer.plot("stability")       # 因子稳定性
 | 模块 | 说明 |
 |------|------|
 | `datacenter` | 数据访问层，统一获取行情和基础信息 |
-| `tool_box.xcals` | 交易日历工具 |
+| `xcals` | 交易日历工具 |
 | `alphamaster.rack` | 数据整合器，加载行情并整合因子数据 |
 | `alphamaster.polens` | 因子分析工具（IC、分层收益、换手率等） |
 

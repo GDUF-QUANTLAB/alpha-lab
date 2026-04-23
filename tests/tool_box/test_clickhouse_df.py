@@ -4,13 +4,13 @@ import pandas as pd
 import polars as pl
 import pytest
 
-from tool_box.clickhouse_df import client
+from clickhouse_df import client
 
 
 # Mock clickhouse_driver.Client
 @pytest.fixture
 def mock_client():
-    with patch("tool_box.clickhouse_df.client.Client") as MockClient:
+    with patch("clickhouse_df.client.Client") as MockClient:
         client_instance = MockClient.return_value
         yield client_instance
 

@@ -34,7 +34,7 @@ def run_job(job: DelayedFunction, task_name: str) -> tuple[str, Any]:
         Exception: 如果任务执行失败
 
     Examples:
-        >>> from tool_box.ygo import delay
+        >>> from ygo import delay
         >>> job = delay(lambda x: x * 2)(x=5)
         >>> result = run_job(job, "test_task")
         >>> result
@@ -68,7 +68,7 @@ def multi_task_name(
         否则返回任务名称到结果列表的映射字典
 
     Examples:
-        >>> from tool_box.ygo import delay
+        >>> from ygo import delay
         >>> jobs = {"task1": [delay(lambda: 1)(), "task2": [delay(lambda: 2)()]}
         >>> results = multi_task_name(jobs, 2, "threading", False)
         >>> results

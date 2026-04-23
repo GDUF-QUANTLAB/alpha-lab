@@ -1,4 +1,4 @@
-from tool_box.ygo import Pool, ProgressManager, delay
+from ygo import Pool, ProgressManager, delay
 
 
 def add(a, b):

@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+branch="$(git rev-parse --abbrev-ref HEAD)"
+if [[ "$branch" == private/* ]]; then
+  echo "push blocked: branch '$branch' is private/*" >&2
+  echo "switch to a release/public branch before push." >&2
+  exit 1
+fi
