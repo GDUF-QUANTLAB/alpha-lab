@@ -6,18 +6,28 @@ is_private_ref() {
   [[ "$ref" == refs/heads/private || "$ref" == refs/heads/private/* ]]
 }
 
-branch="$(git rev-parse --abbrev-ref HEAD)"
-if [[ "$branch" == private || "$branch" == private/* ]]; then
-  echo "push blocked: branch '$branch' is private/*" >&2
-  echo "switch to a release/public branch before push." >&2
-  exit 1
-fi
+is_delete_update() {
+  local local_ref="$1"
+  local local_sha="$2"
+  [[ "$local_ref" == "(delete)" || "$local_sha" =~ ^0+$ ]]
+}
 
 while read -r local_ref local_sha remote_ref remote_sha; do
-  if is_private_ref "${local_ref:-}" || is_private_ref "${remote_ref:-}"; then
+  local_ref="${local_ref:-}"
+  local_sha="${local_sha:-}"
+  remote_ref="${remote_ref:-}"
+
+  if is_private_ref "$local_ref"; then
     echo "push blocked: private branch ref detected in push input." >&2
-    echo "local_ref='${local_ref:-}' remote_ref='${remote_ref:-}'" >&2
+    echo "local_ref='$local_ref' remote_ref='$remote_ref'" >&2
     echo "do not push refs/heads/private/* to remote." >&2
+    exit 1
+  fi
+
+  if is_private_ref "$remote_ref" && ! is_delete_update "$local_ref" "$local_sha"; then
+    echo "push blocked: update to remote private ref is not allowed." >&2
+    echo "local_ref='$local_ref' remote_ref='$remote_ref'" >&2
+    echo "only deletion of refs/heads/private/* is allowed for cleanup." >&2
     exit 1
   fi
 done
