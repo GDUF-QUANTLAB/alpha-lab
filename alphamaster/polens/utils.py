@@ -29,8 +29,7 @@ def align_with_calendar(df: pl.DataFrame) -> pl.DataFrame:
         import xcals
     except ImportError:
         warnings.warn(
-            "xcals 不可用，交易日历对齐已跳过。"
-            "这可能导致 shift 操作跳过非交易日。",
+            "xcals 不可用，交易日历对齐已跳过。这可能导致 shift 操作跳过非交易日。",
             UserWarning,
             stacklevel=2,
         )
