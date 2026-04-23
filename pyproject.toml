@@ -40,7 +40,14 @@ dev = ["pytest", "ruff"]
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["tool_box*", "blazestore*", "datacenter*", "alphamaster*"]
+include = [
+    "blazestore*",
+    "clickhouse_df*",
+    "xcals*",
+    "ygo*",
+    "datacenter*",
+    "alphamaster*",
+]
 
 [tool.setuptools_scm]
 version_scheme = "no-guess-dev"

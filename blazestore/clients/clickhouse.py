@@ -8,7 +8,7 @@ import urllib
 
 import polars as pl
 
-from tool_box import clickhouse_df
+import clickhouse_df
 
 from ..config import get_settings
 from ..exceptions import ConfigError, ConnectionError, QueryError

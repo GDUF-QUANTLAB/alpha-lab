@@ -38,5 +38,5 @@ jobs:
 
     - name: Run tests with Pytest
       run: |
-        uv run python -c "from tool_box import xcals; xcals.update()"
+        uv run python -c "import xcals; xcals.update()"
         uv run pytest tests/

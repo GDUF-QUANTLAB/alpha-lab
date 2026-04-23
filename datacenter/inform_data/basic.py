@@ -3,7 +3,7 @@ from __future__ import annotations
 import polars as pl
 
 import blazestore as bs
-from tool_box import xcals
+import xcals
 
 from ..base import get_data
 from ..enums import DataType, Instrument

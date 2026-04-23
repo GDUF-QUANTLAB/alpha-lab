@@ -25,7 +25,7 @@ class DelayedFunction:
         stored_kwargs: 存储的关键字参数字典
 
     Examples:
-        >>> from tool_box.ygo import delay
+        >>> from ygo import delay
         >>> fn = delay(lambda a, b: a + b).bind(a=1, b=2)
         >>> fn()
         3
