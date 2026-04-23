@@ -41,7 +41,6 @@ dev = ["pytest", "ruff"]
 [tool.setuptools.packages.find]
 where = ["."]
 include = [
-    "tool_box*",
     "blazestore*",
     "clickhouse_df*",
     "xcals*",
