@@ -86,6 +86,29 @@ def test_pool_multiple_groups():
     assert results["group2"] == [2]
 
 
+def test_pool_submit_batch():
+    p = Pool(n_jobs=2, show_progress=False)
+
+    jobs = [delay(add).bind(a=i, b=i) for i in range(3)]
+    submitted = p.submit_batch(jobs, job_name="batch")
+
+    assert submitted == jobs
+    assert len(p._job_map["batch"]) == 3
+
+    results = p.do()
+    assert sorted(results) == [0, 2, 4]
+
+
+def test_pool_submit_batch_single_job():
+    p = Pool(n_jobs=2, show_progress=False)
+
+    job = delay(add).bind(a=1, b=2)
+    submitted = p.submit_batch(job, job_name="single")
+
+    assert submitted == [job]
+    assert p.do() == [3]
+
+
 def test_pool_context_manager():
     with Pool(n_jobs=2, show_progress=False) as p:
 
