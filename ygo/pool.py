@@ -7,7 +7,7 @@
 from __future__ import annotations
 
 import functools
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from typing import Any, TypeVar
 
 from joblib import Parallel, delayed
@@ -194,6 +194,37 @@ class Pool:
             return job
 
         return collect
+
+    def submit_batch(
+        self,
+        jobs: DelayedFunction | Iterable[DelayedFunction],
+        job_name: str | None = None,
+    ) -> list[DelayedFunction]:
+        """
+        批量提交已绑定参数的延迟任务。
+
+        Args:
+            jobs: 一个或多个已构造的 DelayedFunction
+            job_name: 任务组名称，默认为 "Null-JOB"
+
+        Returns:
+            list[DelayedFunction]: 已提交的任务列表
+
+        Examples:
+            >>> pool = Pool()
+            >>> jobs = [delay(lambda x: x * 2).bind(x=i) for i in range(2)]
+            >>> pool.submit_batch(jobs, job_name="test")
+            [<DelayedFunction object>, <DelayedFunction object>]
+        """
+        job_name = "Null-JOB" if job_name is None else job_name
+        job_batch = [jobs] if isinstance(jobs, DelayedFunction) else list(jobs)
+
+        for job in job_batch:
+            if not isinstance(job, DelayedFunction):
+                raise TypeError("submit_batch only accepts DelayedFunction jobs")
+
+        self._job_map.setdefault(job_name, []).extend(job_batch)
+        return job_batch
 
     def do(self) -> list[Any] | dict[str, list[Any]]:
         """
