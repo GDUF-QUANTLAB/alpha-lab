@@ -1,29 +1,27 @@
-# Release Workflow (Private + Integration)
+# Release Workflow
 
 ## Branching
 
 - `private/*`: 本地私有研发分支，不推送。
 - `release/*`: 对外发布集成分支，只保留可公开内容。
 
-## Sync external libs
+## Maintenance Direction
 
-从同级仓库同步 4 个独立库代码到 `alpha-lab`：
+`alpha-lab` 是面向量化研究员的一体化研究工具包。研究员主要使用
+`xcals`、`datacenter` 和 `alphamaster`；其他底层模块作为内部基础设施随包发布。
 
-```bash
-./scripts/sync_external_libs.sh
-```
+当前发布包已经包含这些模块。后续维护方向是将它们作为 `alpha-lab` 的整体交付内容管理，
+而不是继续强调独立库拆分。
 
-预览变更（不落盘）：
+## Release Checks
 
-```bash
-./scripts/sync_external_libs.sh --dry-run
-```
-
-默认从 `../blazestore`、`../clickhouse_df`、`../xcals`、`../ygo` 同步。  
-如需修改源目录，设置 `SOURCE_ROOT`：
+发布前至少运行：
 
 ```bash
-SOURCE_ROOT=/path/to/repos ./scripts/sync_external_libs.sh
+uv run --extra dev ruff format --check .
+uv run --extra dev ruff check .
+uv run --extra dev pytest tests/
+uv build --no-sources
 ```
 
 ## Prevent accidental private push

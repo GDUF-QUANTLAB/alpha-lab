@@ -4,7 +4,7 @@
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
 [![Polars](https://img.shields.io/badge/Polars-Fast-orange.svg)](https://pola.rs/)
 
-专为因子研究员设计的数据处理与因子挖掘框架，提供简洁的数据获取接口和专业的因子分析工具。
+专为因子研究员设计的数据处理与因子挖掘框架，提供交易日历、数据访问和因子分析的一体化工具。
 
 ---
 
@@ -27,17 +27,17 @@ pip install alpha-lab
 ```python
 import polars as pl
 import datacenter as dc
-from xcals import api
+import xcals
 
 # 获取交易日列表
-trading_days = api.get_tradingdays("2023-01-01", "2023-01-31")
+trading_days = xcals.get_tradingdays("2023-01-01", "2023-01-31")
 
 # 读取股票日线数据
 df = dc.md.read_data_batch(
-    start_date="2023-01-01",
+    beg_date="2023-01-01",
     end_date="2023-01-31",
     instrument=dc.Instrument.STOCK,
-    data_type=dc.DataType.KLINE_DAY
+    datatype=dc.DataType.KLINE_DAY,
 )
 
 # 读取基础信息
@@ -99,14 +99,16 @@ analyzer.plot("stability")       # 因子稳定性
 
 ---
 
-## 核心模块
+## 研究员入口
 
 | 模块 | 说明 |
 |------|------|
-| `datacenter` | 数据访问层，统一获取行情和基础信息 |
 | `xcals` | 交易日历工具 |
-| `alphamaster.rack` | 数据整合器，加载行情并整合因子数据 |
-| `alphamaster.polens` | 因子分析工具（IC、分层收益、换手率等） |
+| `datacenter` | 数据访问层，统一获取行情和基础信息 |
+| `alphamaster` | 因子研究工具，包括数据整合器 `Rack` 和因子分析模块 `polens` |
+
+`alpha-lab` 还包含支撑数据存储、数据库访问和并发任务的内部基础设施模块。
+这些模块随发行包一起交付，用于保证研究工具开箱可用，但通常不是研究员直接调用的入口。
 
 ---
 
