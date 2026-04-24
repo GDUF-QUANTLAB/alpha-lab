@@ -4,6 +4,10 @@
 
 - `release/*`: 对外发布集成分支，只保留可公开内容。
 
+`release/*` 分支在发起 PR 前应先同步到最新 `main`。如果 `main` 已合并过同一条
+release 分支的前序 PR，先在本地 rebase 到 `origin/main`，再用
+`git push --force-with-lease` 更新远端 release 分支，避免 PR 出现 diverged 状态。
+
 ## Maintenance Direction
 
 `alpha-lab` 是面向量化研究员的一体化研究工具包。研究员主要使用

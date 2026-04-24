@@ -8,11 +8,10 @@ dynamic = ["version"]
 description = "A High-performance And Standard Alpha Factor Mining System"
 readme = "README.md"
 requires-python = ">=3.11"
-license = { text = "MIT" }
+license = "MIT"
 authors = [{ name = "huangbogeng", email = "huangbogeng@outlook.com" }]
 classifiers = [
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Topic :: Office/Business :: Financial :: Investment",
 ]
