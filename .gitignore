@@ -59,3 +59,4 @@ workspace/
 # Tool specific
 .pre-commit-config.yaml
 !/.pre-commit-config.yaml
+.codex
