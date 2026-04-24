@@ -24,6 +24,8 @@ pip install alpha-lab
 
 ### 1. 读取数据
 
+下面的数据读取示例假设本地数据源和 `datacenter` 相关配置已经就绪。
+
 ```python
 import polars as pl
 import datacenter as dc
