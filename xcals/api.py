@@ -233,6 +233,9 @@ def get_previous_report_dates(
     else:
         d = date
 
+    if season is not None and season not in [1, 2, 3, 4]:
+        raise ValueError(f"Invalid season: {season}. Must be 1, 2, 3, or 4.")
+
     disclosure_deadlines = {
         3: (4, 30),
         6: (8, 31),
