@@ -208,31 +208,23 @@ def update() -> None:
 def get_previous_report_dates(
     date: str | datetime.date,
     n: int = 1,
-    season: int | None = None,
+    season: int = None,
     to_str: bool = True,
+    if_safe: bool = False,
 ) -> list[str] | list[datetime.date]:
     """
     获取指定日期之前的 n 个报告期。
 
     Args:
-        date: 当前日期，可以是字符串 (YYYY-MM-DD) 或 datetime.date 对象
-        n: 报告期个数，默认为 1
+        date: 当前日期
+        n: 报告期个数
         season: 季度 (1, 2, 3, 4) 或 None。
                None 表示连续报告期。
                1-4 表示只获取对应季度的报告期 (如 season=1 只获取 3月31日)。
-        to_str: 是否返回字符串列表，默认为 True
-
-    Returns:
-        List[str] | List[datetime.date]: 报告期列表，按时间顺序排列
-
-    Raises:
-        ValueError: 如果 n 超过合理范围或 season 参数无效
-
-    Examples:
-        >>> get_previous_report_dates("2023-12-31", 2)
-        ['2023-09-30', '2023-06-30']
-        >>> get_previous_report_dates("2023-12-31", 2, season=1)
-        ['2023-03-31', '2022-03-31']
+        to_str: 是否返回字符串列表
+        if_safe: 是否只返回已过法定披露截止日的报告期。
+                 True 表示强制要求返回的报告日期在上一个截止日之前。
+                 False 表示不检查披露截止日。
     """
     if isinstance(date, str):
         d = datetime.datetime.strptime(date, "%Y-%m-%d").date()
@@ -240,6 +232,21 @@ def get_previous_report_dates(
         d = date.date()
     else:
         d = date
+
+    disclosure_deadlines = {
+        3: (4, 30),
+        6: (8, 31),
+        9: (10, 31),
+        12: (4, 30),
+    }
+
+    def is_safe(report_date: datetime.date, current_date: datetime.date) -> bool:
+        month, day = disclosure_deadlines[report_date.month]
+        if report_date.month == 12:
+            deadline = datetime.date(report_date.year + 1, month, day)
+        else:
+            deadline = datetime.date(report_date.year, month, day)
+        return deadline <= current_date
 
     y = d.year
     candidates = [
@@ -269,13 +276,35 @@ def get_previous_report_dates(
 
         # Check season
         if season is not None:
-            if season not in [1, 2, 3, 4]:
-                raise ValueError(f"Invalid season: {season}. Must be 1, 2, 3, or 4.")
             target_month = season * 3
-            if current.month == target_month:
-                result.append(current)
-        else:
-            result.append(current)
+            if current.month != target_month:
+                curr_m = current.month
+                curr_y = current.year
+                if curr_m == 3:
+                    current = datetime.date(curr_y - 1, 12, 31)
+                elif curr_m == 6:
+                    current = datetime.date(curr_y, 3, 31)
+                elif curr_m == 9:
+                    current = datetime.date(curr_y, 6, 30)
+                elif curr_m == 12:
+                    current = datetime.date(curr_y, 9, 30)
+                continue
+
+        # Check safety
+        if if_safe and not is_safe(current, d):
+            curr_m = current.month
+            curr_y = current.year
+            if curr_m == 3:
+                current = datetime.date(curr_y - 1, 12, 31)
+            elif curr_m == 6:
+                current = datetime.date(curr_y, 3, 31)
+            elif curr_m == 9:
+                current = datetime.date(curr_y, 6, 30)
+            elif curr_m == 12:
+                current = datetime.date(curr_y, 9, 30)
+            continue
+
+        result.append(current)
 
         # Move previous
         curr_m = current.month
