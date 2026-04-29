@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 import bisect
+import importlib.resources
 import os
+import shutil
 
 import polars as pl
 
 USERHOME = os.path.expanduser("~")
 FILE_PATH = os.path.join(USERHOME, ".xcals")
 FILE_URL = "https://raw.githubusercontent.com/link-yundi/xcals/refs/heads/main/.xcals"
+PACKAGE_XCALS = importlib.resources.files("xcals").joinpath(".xcals")
 
 
 class Calendar:
@@ -39,7 +42,9 @@ class Calendar:
             return
 
         if not os.path.exists(FILE_PATH):
-            self.update()
+            # 从包内复制到用户目录
+            os.makedirs(os.path.dirname(FILE_PATH), exist_ok=True)
+            shutil.copy(PACKAGE_XCALS, FILE_PATH)
 
         if not os.path.exists(FILE_PATH):
             raise FileNotFoundError(f"Calendar file not found at {FILE_PATH}")
