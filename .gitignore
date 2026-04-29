@@ -34,6 +34,9 @@ venv.bak/
 # IDEs
 .idea/
 .vscode/
+.codex
+CLAUDE.md
+.claude/
 *.swp
 *.swo
 
@@ -59,4 +62,3 @@ workspace/
 # Tool specific
 .pre-commit-config.yaml
 !/.pre-commit-config.yaml
-.codex
