@@ -18,11 +18,9 @@ def topological_sort(*functions) -> list:
                 if dep not in all_functions:
                     queue.append(dep)
 
-    in_degree: dict = dict.fromkeys(all_functions, 0)
-    for func in all_functions:
-        if hasattr(func, "_depends"):
-            for _ in func._depends:
-                in_degree[func] += 1
+    in_degree: dict = {
+        func: len(getattr(func, "_depends", [])) for func in all_functions
+    }
 
     result: list = []
     zero_in_degree = deque([f for f in all_functions if in_degree[f] == 0])

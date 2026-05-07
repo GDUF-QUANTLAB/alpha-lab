@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import polars as pl
 
-from tool_box import xcals
+import xcals
 
 from . import store
 from .core import FIELD, INDEX, BasicFactor
@@ -79,6 +79,9 @@ class FactorContext:
         d_list = [date]
         if date is None:
             d_list = xcals.get_tradingdays(beg_date, end_date)
+
+        if not self.dep_facs:
+            return pl.DataFrame()
 
         big_df = None
         for fac in self.dep_facs:

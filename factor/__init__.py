@@ -30,13 +30,13 @@ def update_factors(
     end_date: str,
     n_jobs: int = 11,
 ):
-    from tool_box import ygo
+    from ygo import Pool
 
     plan = get_execution_plan(*factors)
     groups = plan["parallel_groups"]
 
     def run_update(factors: list, epoch: int):
-        with ygo.Pool(n_jobs=n_jobs) as go:
+        with Pool(n_jobs=n_jobs) as go:
             for fac in factors:
                 for task in get_update_tasks(fac, beg_date, end_date):
                     go.submit(task, job_name=f"[{epoch}/{len(groups)}] {fac.name}")()

@@ -3,7 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import polars as pl
 
-from tool_box import xcals
+import xcals
 
 from . import store
 from .context import FactorContext
