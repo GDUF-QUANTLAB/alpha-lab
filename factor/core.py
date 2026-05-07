@@ -191,7 +191,6 @@ class BasicFactor:
 
         depends_version = [f"{depend.version}.{depend.lag}" for depend in self._depends]
         depends_version.append(self_version)
-        depends_version.sort()
 
         combined_version = ",".join(depends_version)
         return hashlib.md5(combined_version.encode()).hexdigest()

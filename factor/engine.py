@@ -85,10 +85,6 @@ def get_value(
     if data is None:
         data = get_value_online(fac, data_date)
 
-    if data[FIELD.FIELDNAMES].n_unique() > 1:
-        data = data.pivot(on=FIELD.FIELDNAMES, index=FIELD.ASSET, values=FIELD.VALUE)
-    data = data.select(FIELD.ASSET, pl.col(FIELD.VALUE).alias(fac.name))
-
     data = data.with_columns(xcals.to_datetime(date, time).alias(FIELD.DATETIME))
     return data.select(*INDEX, fac.name).sort(INDEX)
 

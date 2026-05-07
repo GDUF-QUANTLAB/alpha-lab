@@ -2,6 +2,7 @@ import polars as pl
 import polars_ds as pds
 
 from ..context import FactorContext
+from ..core import FIELD
 
 
 def TS_MEAN(cb: FactorContext, date, window: int) -> pl.Expr:
@@ -25,7 +26,10 @@ def TS_ZSCORE(cb: FactorContext, date, window: int) -> pl.Expr:
         cb.load_window(date, window)
         .group_by("asset")
         .agg(
-            ((pl.col(c).sort_by("date").last() - pl.col(c).mean()) / pl.col(c).std())
+            (
+                (pl.col(c).sort_by(FIELD.DATETIME).last() - pl.col(c).mean())
+                / pl.col(c).std()
+            )
             for c in cb.dep_names
         )
     )
@@ -56,7 +60,7 @@ def TS_CORR(cb: FactorContext, date, window: int) -> pl.Expr:
         cb.load_window(date, window)
         .drop_nulls()
         .drop_nans()
-        .filter(pl.col("date").n_unique().over("asset") >= 5)
+        .filter(pl.col(FIELD.DATETIME).n_unique().over("asset") >= 5)
         .group_by("asset")
         .agg(pl.corr(left, right))
     )
