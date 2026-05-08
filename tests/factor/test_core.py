@@ -354,7 +354,9 @@ class TestCubase:
             )
 
         monkeypatch.setattr("factor.core.cubase.xcals.to_datetime", fake_to_datetime)
-        monkeypatch.setattr("factor.core.cubase.xcals.shift_tradeday", fake_shift_tradeday)
+        monkeypatch.setattr(
+            "factor.core.cubase.xcals.shift_tradeday", fake_shift_tradeday
+        )
         monkeypatch.setattr("factor.store.read_factor_range", fake_read_factor_range)
 
         result = cubase.load(date="2023-01-03", loader_time="15:00:00")
