@@ -138,3 +138,11 @@ class BasicFactor:
 
         collect_dependencies(self)
         return dependencies
+
+    def shift(self, n: int = 1) -> BasicFactor:
+        """
+        Return a lagged factor.
+
+        Subclasses should implement this to return a new factor with updated lag.
+        """
+        raise NotImplementedError("shift method must be implemented in subclass")

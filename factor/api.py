@@ -33,7 +33,9 @@ class Factor(BasicFactor):
             raw_depends = cubase.factors
         else:
             raw_depends = depends
-            cubase = Cubase([{"factor": fac} for fac in raw_depends])
+            cubase = Cubase(
+                [{"factor": fac, "lag": getattr(fac, "lag", 0)} for fac in raw_depends]
+            )
 
         self._cubase = cubase
 
