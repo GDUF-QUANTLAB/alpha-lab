@@ -29,7 +29,11 @@ def get_value_online(fac: BasicFactor, date: str) -> pl.DataFrame:
     insert_time = fac.insert_time
 
     if len(fac._depends) > 0:
-        cb = FactorContext(*fac._depends, loader_time=fac.insert_time)
+        cubase = getattr(fac, "_cubase", None)
+        if cubase is None:
+            cb = FactorContext(*fac._depends, loader_time=fac.insert_time)
+        else:
+            cb = FactorContext(cubase, loader_time=fac.insert_time)
         data = delay(fac.fn)(date=date, cb=cb)
     else:
         data = delay(fac.fn)(date=date)

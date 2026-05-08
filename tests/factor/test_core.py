@@ -1,5 +1,6 @@
 """Tests for factor.core module."""
 
+import polars as pl
 import pytest
 
 from factor.core import (
@@ -8,6 +9,7 @@ from factor.core import (
     INDEX,
     TIMETYPE,
     BasicFactor,
+    Cubase,
     DelayedFunction,
     delay,
     fn_params,
@@ -230,3 +232,171 @@ class TestConstants:
         """Test FORMAT class constants."""
         assert FORMAT.DATE == "%Y-%m-%d"
         assert FORMAT.TIME == "%H:%M:%S"
+
+
+class TestCubase:
+    """Tests for Cubase dependency container class."""
+
+    def test_cubase_creation(self):
+        """Test creating a Cubase with dependencies."""
+        dep1 = DummyFactor(fn=dummy_fn, name="dep1", insert_time="15:00:00")
+        dep2 = DummyFactor(fn=dummy_fn, name="dep2", insert_time="15:00:00")
+
+        cubase = Cubase(
+            [
+                {"factor": dep1, "lag": 1},
+                {"factor": dep2, "lag": 2},
+            ]
+        )
+
+        assert len(cubase) == 2
+        assert cubase.factors == [dep1, dep2]
+        assert cubase.dep_names == ["dep1", "dep2"]
+
+    def test_cubase_get_lag(self):
+        """Test getting lag from Cubase."""
+        dep1 = DummyFactor(fn=dummy_fn, name="dep1", insert_time="15:00:00")
+        dep2 = DummyFactor(fn=dummy_fn, name="dep2", insert_time="15:00:00")
+
+        cubase = Cubase(
+            [
+                {"factor": dep1, "lag": 1},
+                {"factor": dep2},  # No lag specified
+            ]
+        )
+
+        assert cubase.get_lag(0) == 1
+        assert cubase.get_lag(1) == 0  # Default lag
+
+    def test_cubase_iteration(self):
+        """Test iterating over Cubase."""
+        dep1 = DummyFactor(fn=dummy_fn, name="dep1", insert_time="15:00:00")
+        dep2 = DummyFactor(fn=dummy_fn, name="dep2", insert_time="15:00:00")
+
+        cubase = Cubase(
+            [
+                {"factor": dep1, "lag": 1},
+                {"factor": dep2, "lag": 2},
+            ]
+        )
+
+        items = list(cubase)
+        assert len(items) == 2
+        assert items[0]["factor"] == dep1
+        assert items[0]["lag"] == 1
+
+    def test_cubase_get_config(self):
+        """Test getting full config from Cubase."""
+        dep1 = DummyFactor(fn=dummy_fn, name="dep1", insert_time="15:00:00")
+
+        cubase = Cubase(
+            [
+                {"factor": dep1, "lag": 3, "weight": 0.5},
+            ]
+        )
+
+        config = cubase.get_config(0)
+        assert config["factor"] == dep1
+        assert config["lag"] == 3
+        assert config["weight"] == 0.5
+
+    def test_cubase_load_batches_factors_from_local_store(self, monkeypatch):
+        """Test Cubase.load() joins configured factors from local data."""
+        dep1 = DummyFactor(fn=dummy_fn, name="dep1", insert_time="15:00:00")
+        dep2 = DummyFactor(fn=dummy_fn, name="dep2", insert_time="15:00:00")
+        cubase = Cubase([{"factor": dep1}, {"factor": dep2}])
+
+        def fake_to_datetime(date, time):
+            return pl.lit(f"{date} {time}")
+
+        def fake_read_factor_range(tb_name, beg_date, end_date, lazy=True):
+            name = tb_name.split("name=")[1].split("/")[0]
+            return pl.DataFrame(
+                {
+                    FIELD.DATE: ["2023-01-03"],
+                    FIELD.ASSET: ["A"],
+                    FIELD.FIELDNAMES: ["value"],
+                    FIELD.VALUE: [1.0 if name == "dep1" else 2.0],
+                }
+            )
+
+        monkeypatch.setattr("factor.core.cubase.xcals.to_datetime", fake_to_datetime)
+        monkeypatch.setattr("factor.store.read_factor_range", fake_read_factor_range)
+
+        result = cubase.load(date="2023-01-03", loader_time="15:00:00")
+
+        assert result.select("dep1", "dep2").row(0) == (1.0, 2.0)
+        assert result[FIELD.DATETIME].to_list() == ["2023-01-03 15:00:00"]
+
+    def test_cubase_load_aligns_lagged_data_to_target_date(self, monkeypatch):
+        """Test lag changes source date while returned datetime stays target-aligned."""
+        dep = DummyFactor(fn=dummy_fn, name="dep", insert_time="15:00:00")
+        cubase = Cubase([{"factor": dep, "lag": 1}])
+        requested_ranges = []
+
+        def fake_to_datetime(date, time):
+            return pl.lit(f"{date} {time}")
+
+        def fake_shift_tradeday(date, n):
+            assert date == "2023-01-03"
+            assert n == -1
+            return "2023-01-02"
+
+        def fake_read_factor_range(tb_name, beg_date, end_date, lazy=True):
+            requested_ranges.append((beg_date, end_date))
+            return pl.DataFrame(
+                {
+                    FIELD.DATE: ["2023-01-02"],
+                    FIELD.ASSET: ["A"],
+                    FIELD.FIELDNAMES: ["value"],
+                    FIELD.VALUE: [2.0],
+                }
+            )
+
+        monkeypatch.setattr("factor.core.cubase.xcals.to_datetime", fake_to_datetime)
+        monkeypatch.setattr("factor.core.cubase.xcals.shift_tradeday", fake_shift_tradeday)
+        monkeypatch.setattr("factor.store.read_factor_range", fake_read_factor_range)
+
+        result = cubase.load(date="2023-01-03", loader_time="15:00:00")
+
+        assert requested_ranges == [("2023-01-02", "2023-01-02")]
+        assert result["dep"].to_list() == [2.0]
+        assert result[FIELD.DATETIME].to_list() == ["2023-01-03 15:00:00"]
+
+    def test_cubase_load_window_uses_tradingday_window(self, monkeypatch):
+        """Test load_window delegates to load() with the expected date range."""
+        dep = DummyFactor(fn=dummy_fn, name="dep", insert_time="15:00:00")
+        cubase = Cubase([{"factor": dep}])
+        captured = {}
+
+        def fake_load(
+            *, date=None, beg_date=None, end_date=None, loader_time="15:00:00"
+        ):
+            captured.update(
+                date=date,
+                beg_date=beg_date,
+                end_date=end_date,
+                loader_time=loader_time,
+            )
+            return pl.DataFrame()
+
+        monkeypatch.setattr(
+            "factor.core.cubase.xcals.shift_tradeday", lambda date, n: "2023-01-02"
+        )
+        monkeypatch.setattr(cubase, "load", fake_load)
+
+        cubase.load_window("2023-01-04", window=3, loader_time="09:30:00")
+
+        assert captured == {
+            "date": None,
+            "beg_date": "2023-01-02",
+            "end_date": "2023-01-04",
+            "loader_time": "09:30:00",
+        }
+
+    def test_cubase_load_window_rejects_non_positive_window(self):
+        """Test load_window validates window size."""
+        cubase = Cubase([])
+
+        with pytest.raises(ValueError, match="window must be greater than 0"):
+            cubase.load_window("2023-01-03", window=0)

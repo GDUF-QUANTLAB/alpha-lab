@@ -66,8 +66,9 @@ def group_by_level(*functions) -> list[list]:
 
 
 def get_execution_plan(*functions) -> dict:
+    sorted_functions = topological_sort(*functions)
     groups = group_by_level(*functions)
-    independent = [f for f in set(topological_sort(*functions)) if not f._depends]
+    independent = [f for f in sorted_functions if not f._depends]
 
     return {
         "parallel_groups": groups,
