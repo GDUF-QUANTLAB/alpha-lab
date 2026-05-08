@@ -6,8 +6,7 @@ import os
 
 import rich
 
-from .constants import FIELD
-from .delayed import delay, fn_code, fn_info, fn_params, fn_path
+from .delayed import fn_info, fn_params, fn_path
 
 
 class BasicFactor:
