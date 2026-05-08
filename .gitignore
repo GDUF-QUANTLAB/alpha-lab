@@ -49,6 +49,9 @@ htmlcov/
 .mypy_cache/
 .ruff_cache/
 
+# Docs
+docs/
+
 # Local data (if any)
 *.parquet
 *.csv
