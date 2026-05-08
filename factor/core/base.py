@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import inspect
-import os
+from pathlib import Path
 
 import rich
 
@@ -118,11 +118,8 @@ class BasicFactor:
 
     @property
     def tb_name(self) -> str:
-        return os.path.join(
-            "factors",
-            f"name={self.name}",
-            f"version={self.version}",
-        )
+        path = Path("factors") / f"name={self.name}" / f"version={self.version}"
+        return str(path)
 
     def info(self) -> None:
         rich.inspect(self, help=True)
