@@ -133,7 +133,9 @@ class Rack:
                 value_col
             )
 
-        self._factor_df = factor_df.select("date", "asset", "value")
+        base_cols = ["date", "asset", "value"]
+        extra_cols = [c for c in factor_df.columns if c not in base_cols]
+        self._factor_df = factor_df.select(base_cols + extra_cols)
         self._merged_df = None
 
         return self
